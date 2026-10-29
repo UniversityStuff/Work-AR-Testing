@@ -79,13 +79,32 @@ function upRotation(model, mode) {
   return new THREE.Quaternion().setFromUnitVectors(up, new THREE.Vector3(0, 0, 1));
 }
 
+// Scans often ship 8K textures; phones run out of GPU memory on those.
+const MAX_TEXTURE = 4096;
+function limitTexture(tex) {
+  const img = tex.image;
+  const w = img?.width, h = img?.height;
+  if (!w || Math.max(w, h) <= MAX_TEXTURE) return;
+  const k = MAX_TEXTURE / Math.max(w, h);
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * k);
+  c.height = Math.round(h * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  img.close?.();
+  tex.image = c;
+  tex.needsUpdate = true;
+}
+
 // Photogrammetry textures already contain the lighting; render them unlit.
 function prepareMaterials(model) {
   model.traverse((o) => {
     if (!o.isMesh) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     const out = mats.map((m) => {
-      if (m.map) return new THREE.MeshBasicMaterial({ map: m.map, side: THREE.DoubleSide, transparent: m.transparent, opacity: m.opacity });
+      if (m.map) {
+        limitTexture(m.map);
+        return new THREE.MeshBasicMaterial({ map: m.map, side: THREE.DoubleSide, transparent: m.transparent, opacity: m.opacity });
+      }
       m.side = THREE.DoubleSide;
       return m;
     });

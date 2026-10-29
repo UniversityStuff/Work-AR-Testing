@@ -78,9 +78,10 @@ Then add an entry to `MODELS` in `js/config.js`. Each IFC file becomes a layer t
 
 - Use good, even light and avoid glare on the paper.
 - `?debug` (e.g. `demo1.html?debug`) outlines the detected markers and their IDs.
-- `?f=0.85` overrides the assumed camera focal length (as a fraction of the longer image side;
-  the default of 0.75 fits most phone main cameras). Change it if the model seems to float or
-  sink relative to the paper at steep viewing angles.
+- The camera focal length is estimated automatically from the markers (best while two or more
+  markers are in view at an angle) and remembered on the phone. `?f=0.85` forces a value (as a
+  fraction of the longer image side). With `?debug`, the status lines show the estimate, the pose
+  error and how many triangles are being drawn.
 - If the table measurement warns that the sheets don't line up, check that each sheet is in its
   labelled corner and that all arrows point to the front.
 

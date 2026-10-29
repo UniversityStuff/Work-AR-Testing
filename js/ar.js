@@ -272,6 +272,9 @@ export function solvePlanarPose(obj, img, K) {
 
 // ---------------------------------------------------------------- rendering
 
+const FOCAL_KEY = 'ar-focal-factor';
+const FOCAL_SAMPLES = 15;
+
 const FLIP = new THREE.Matrix4().set(1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
 
 class Anchor {
@@ -295,13 +298,24 @@ export class ARScene {
     this.canvas = canvas;
     this.debugCanvas = debugCanvas;
     this.holdMs = holdMs;
+    // Focal length as a fraction of the longer image side. Phones differ a lot, so
+    // unless ?f= is given it is estimated from the markers and remembered per device.
     const fParam = parseFloat(params.get('f'));
-    // Focal length as a fraction of the longer image side (~ typical phone main camera).
-    this.focalFactor = Number.isFinite(fParam) ? fParam : 0.75;
+    this.focalFixed = Number.isFinite(fParam);
+    let stored = NaN;
+    try { stored = parseFloat(localStorage.getItem(FOCAL_KEY)); } catch {}
+    this.focalFactor = this.focalFixed ? fParam : Number.isFinite(stored) ? stored : 0.75;
+    this.focalSamples = [];
+    this.focalTick = 0;
+    this.lastPoseError = NaN;
 
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      window.showDiagnostic?.('The phone stopped the 3D graphics (out of GPU memory, usually from a very large model). Reload the page.');
+    });
     this.scene = new THREE.Scene();
     this.camera = new THREE.Camera();
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2));
@@ -317,9 +331,46 @@ export class ARScene {
     addEventListener('resize', () => this.resize());
   }
 
+  _videoSize() {
+    return { vw: this.video.videoWidth || 1280, vh: this.video.videoHeight || 720 };
+  }
+
   get K() {
-    const vw = this.video.videoWidth || 1280, vh = this.video.videoHeight || 720;
+    const { vw, vh } = this._videoSize();
     return { f: this.focalFactor * Math.max(vw, vh), cx: vw / 2, cy: vh / 2 };
+  }
+
+  // Finds the focal length for which this view of a flat board fits a rigid
+  // camera pose best. Only views that are clearly tilted constrain it.
+  _estimateFocal(obj, img) {
+    const { vw, vh } = this._videoSize();
+    const L = Math.max(vw, vh);
+    const err = (fac) => solvePlanarPose(obj, img, { f: fac * L, cx: vw / 2, cy: vh / 2 })?.error ?? Infinity;
+    // Coarse log-spaced scan, then golden-section refinement around the best.
+    let best = 0.75, bestErr = Infinity;
+    for (let i = 0; i <= 14; i++) {
+      const fac = 0.4 * Math.pow(2.5 / 0.4, i / 14);
+      const e = err(fac);
+      if (e < bestErr) { best = fac; bestErr = e; }
+    }
+    let a = best / 1.14, b = best * 1.14;
+    const g = (Math.sqrt(5) - 1) / 2;
+    for (let i = 0; i < 14; i++) {
+      const c = b - g * (b - a), d = a + g * (b - a);
+      if (err(c) < err(d)) b = d; else a = c;
+    }
+    best = (a + b) / 2;
+    bestErr = err(best);
+    const sharp = err(best * 0.8) > 1.3 * bestErr + 0.3 && err(best * 1.25) > 1.3 * bestErr + 0.3;
+    if (!sharp || bestErr > 0.01 * L) return;
+    this.focalSamples.push(best);
+    if (this.focalSamples.length >= 3) {
+      const sorted = [...this.focalSamples].sort((x, y) => x - y);
+      this.focalFactor = sorted[sorted.length >> 1];
+    }
+    if (this.focalSamples.length === FOCAL_SAMPLES) {
+      try { localStorage.setItem(FOCAL_KEY, String(this.focalFactor)); } catch {}
+    }
   }
 
   // Mapping from video pixels to CSS pixels for <video style="object-fit: cover">.
@@ -341,7 +392,7 @@ export class ARScene {
   }
 
   _updateProjection() {
-    const key = `${innerWidth}x${innerHeight}:${this.video.videoWidth}x${this.video.videoHeight}`;
+    const key = `${innerWidth}x${innerHeight}:${this.video.videoWidth}x${this.video.videoHeight}:${this.focalFactor}`;
     if (key === this._projKey) return;
     this._projKey = key;
     this.resize();
@@ -367,8 +418,14 @@ export class ARScene {
 
   // obj: plane points in the anchor's frame (meters); img: matching video pixels.
   updateAnchor(name, obj, img, now) {
+    // Two or more markers in view: refine the focal length estimate now and then.
+    if (!this.focalFixed && this.focalSamples.length < FOCAL_SAMPLES && obj.length >= 8 && this.focalTick++ % 4 === 0) {
+      this._estimateFocal(obj, img);
+    }
     const pose = solvePlanarPose(obj, img, this.K);
-    if (!pose || pose.error > 12) return false;
+    this.lastPoseError = pose ? pose.error : NaN;
+    const { vw, vh } = this._videoSize();
+    if (!pose || pose.error > Math.max(12, 0.02 * Math.max(vw, vh))) return false;
     const a = this.anchors.get(name) || (this.anchor(name), this.anchors.get(name));
     const { R, t } = pose;
     this._m.set(
@@ -427,6 +484,20 @@ export class ARScene {
       ctx.fillStyle = '#00ff88';
       ctx.fillText(`#${m.id}`, pts[0][0] + 6, pts[0][1] - 6);
     }
+    // Status line: is the pose accepted and is anything actually drawn?
+    const info = this.renderer.info.render;
+    const tracked = [...this.anchors.values()].some((a) => a.tracked);
+    const { vw, vh } = this._videoSize();
+    const lines = [
+      `video ${vw}×${vh} · markers ${this.lastMarkers.length} · ${tracked ? 'tracked' : 'not tracked'}`,
+      `pose error ${this.lastPoseError.toFixed(1)} px · focal ${this.focalFactor.toFixed(3)} (${this.focalFixed ? 'fixed' : `auto ${this.focalSamples.length}/${FOCAL_SAMPLES}`})`,
+      `drawn: ${info.triangles} triangles, ${info.calls} draw calls`,
+    ];
+    ctx.font = '12px ui-monospace, monospace';
+    ctx.fillStyle = 'rgba(0,0,0,.6)';
+    ctx.fillRect(8, 64, Math.min(innerWidth - 16, 400), 54);
+    ctx.fillStyle = '#fff';
+    lines.forEach((l, i) => ctx.fillText(l, 14, 82 + i * 16));
   }
 }
 
