@@ -23,7 +23,18 @@ while read -r name url; do
   curl -fL --retry 3 -o "$src/$name" "$url"
 done < "$src/files.txt"
 
-# Keep the source coordinates (metres, Z up); the tileset's root transform
-# carries the offset, and the viewer centres the model on the markers.
 py3dtiles convert "$src"/*.laz --out "$out" --overwrite
+
+# py3dtiles puts the map offset (EPSG:3944, millions of metres) into the root
+# transform. The tile renderer would take that for a position on the globe and
+# tilt the model, so keep it only as metadata: the viewer centres models anyway.
+"${PYTHON:-python3}" - "$out/tileset.json" <<'EOF'
+import json, sys
+path = sys.argv[1]
+t = json.load(open(path))
+m = t['root'].pop('transform', None)
+if m:
+    t['asset'].setdefault('extras', {})['epsg3944_offset'] = m[12:15]
+json.dump(t, open(path, 'w'))
+EOF
 du -sh "$out"

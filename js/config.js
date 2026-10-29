@@ -50,26 +50,23 @@ export function tableBoard({ width, depth }) {
   };
 }
 
-// Models the viewer can show. `url` is tried first, then `fallbackUrl`; `tiles` is a 3D Tiles tileset.json.
+// Models the viewer can show: `url` is a GLB, `tiles` a 3D Tiles tileset.json; `missing` explains a model that is built locally.
 // Models are standard glTF (Y up). `up: 'auto'` guesses the up axis for scans
 // exported in other conventions.
 const BS_CREDIT = 'buildingSMART International, "Simple-Scene" sample (IFC4), CC BY 4.0';
-const DRONE_CREDIT = 'Matt1up, "drone-building-scans" flat-roof reconstruction, CC BY 4.0';
 const FTIA_CREDIT = 'Finnish Transport Infrastructure Agency (FTIA), Toivola level crossing, via buildingSMART IFC Rail sample files (UT_DPE_5)';
 export const MODELS = [
   { id: 'crossing', name: 'Level crossing, Toivola (FI)', kind: 'Rail BIM (IFC 4.3)', url: 'models/rail-level-crossing.glb', credit: FTIA_CREDIT },
-  { id: 'house', name: 'Single-family house', kind: 'BIM (IFC)', url: 'models/bim-house.glb', credit: BS_CREDIT },
   { id: 'site', name: 'House, road, rail & bridge site', kind: 'BIM (IFC)', url: 'models/bim-site.glb', credit: BS_CREDIT },
-  {
-    id: 'drone', name: 'Commercial building', kind: 'Drone scan', up: 'auto', credit: DRONE_CREDIT,
-    url: 'models/drone-flat-roof.glb',
-    fallbackUrl: 'https://huggingface.co/datasets/Matt1up/drone-building-scans/resolve/main/flat-roof/model/flat-roof.glb',
-    note: 'about 22 MB, loads from Hugging Face',
-  },
   // 3D Tiles tilesets (tools/glb2tiles.py) are streamed: only the tiles in view, at the detail needed.
   {
     id: 'station-tiles', name: 'Abandoned train station', kind: 'Drone scan (streamed)', tiles: 'models/tiles/abandoned-station/tileset.json',
     credit: 'Vasilis Haroupas, "Abandoned Train Station", CC BY 4.0',
+  },
+  {
+    id: 'sncf-rail', name: 'Railway point cloud, France', kind: 'LiDAR (streamed)', tiles: 'models/tiles/sncf-rail/tileset.json',
+    credit: 'SNCF Réseau, "Nuage de points 3D des infrastructures ferroviaires", ODbL 1.0',
+    missing: 'This model is built locally: run tools/fetch-sncf-pointcloud.sh and serve the demo from that computer.',
   },
 ];
 

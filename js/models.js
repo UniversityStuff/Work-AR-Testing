@@ -164,6 +164,13 @@ function limitTexture(tex) {
 // Photogrammetry textures already contain the lighting; render them unlit.
 function prepareMaterials(model) {
   model.traverse((o) => {
+    // Point clouds (LiDAR tiles): three sizes points in scene metres, ignoring the
+    // model's fit scale, so a 1 "m" point would cover the sheet. Use pixels instead.
+    if (o.isPoints) {
+      o.material.sizeAttenuation = false;
+      o.material.size = 2 * Math.min(devicePixelRatio, 2); // matches the renderer's pixel ratio
+      return;
+    }
     if (!o.isMesh) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     const out = mats.map((m) => {

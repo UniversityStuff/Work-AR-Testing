@@ -64,7 +64,7 @@ export function createViewer(stage, { defaultModel }) {
       if (token !== loadToken) return;
       setLoading(null);
       window.showDiagnostic?.(`Could not load "${def.name}": ${e.message || e}.`
-        + (def.fallbackUrl ? ' Check the internet connection, or run tools/fetch-models.sh to put the file into models/.' : ''));
+        + (def.missing ? ` ${def.missing}` : ''));
     }
   }
 
