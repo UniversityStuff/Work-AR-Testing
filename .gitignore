@@ -1,0 +1,3 @@
+# Large source data (drone scans, point clouds) and the tiles generated from it.
+models/source/
+models/tiles/sncf-rail/

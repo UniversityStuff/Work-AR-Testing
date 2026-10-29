@@ -55,7 +55,9 @@ export function tableBoard({ width, depth }) {
 // exported in other conventions.
 const BS_CREDIT = 'buildingSMART International, "Simple-Scene" sample (IFC4), CC BY 4.0';
 const DRONE_CREDIT = 'Matt1up, "drone-building-scans" flat-roof reconstruction, CC BY 4.0';
+const FTIA_CREDIT = 'Finnish Transport Infrastructure Agency (FTIA), Toivola level crossing, via buildingSMART IFC Rail sample files (UT_DPE_5)';
 export const MODELS = [
+  { id: 'crossing', name: 'Level crossing, Toivola (FI)', kind: 'Rail BIM (IFC 4.3)', url: 'models/rail-level-crossing.glb', credit: FTIA_CREDIT },
   { id: 'house', name: 'Single-family house', kind: 'BIM (IFC)', url: 'models/bim-house.glb', credit: BS_CREDIT },
   { id: 'site', name: 'House, road, rail & bridge site', kind: 'BIM (IFC)', url: 'models/bim-site.glb', credit: BS_CREDIT },
   {

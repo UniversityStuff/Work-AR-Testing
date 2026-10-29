@@ -14,6 +14,7 @@ install, no build step.
 
 | Model | Type | Source | License |
 |---|---|---|---|
+| Level crossing, Toivola (FI) | Railway BIM, IFC 4.3: track, ballast, boom barrier, signals, axle counters, cables, technical building | [bSI-RailwayRoom/IFC-Rail-Sample-Files, UT_DPE_5](https://github.com/bSI-RailwayRoom/IFC-Rail-Sample-Files/tree/main/7_Domain%20Physical%20Elements%20(DPE)/UT_DPE_5), data owner Finnish Transport Infrastructure Agency (FTIA) | Published as a public sample; the repository states no license |
 | Single-family house | BIM, IFC4 (architecture, structure, HVAC, landscaping) | [buildingSMART Sample-Test-Files, "Simple-Scene"](https://github.com/buildingSMART/Sample-Test-Files) | CC BY 4.0, © buildingSMART International Ltd. |
 | House, road, rail & bridge site | BIM, IFC4, all 10 discipline models of the same scene | same | same |
 | Commercial building | Textured drone photogrammetry (RealityScan), 951 photos | [Matt1Up/drone-building-scans-dataset](https://github.com/Matt1Up/drone-building-scans-dataset), flat-roof scan | CC BY 4.0, Matt1up |
@@ -21,6 +22,17 @@ install, no build step.
 The BIM models were converted from IFC with `tools/ifc2glb.py` and are committed in `models/`.
 The drone scan (about 22 MB) is downloaded from Hugging Face at runtime. To bundle it instead
 (e.g. for offline presentations), run `tools/fetch-models.sh` and commit `models/drone-flat-roof.glb`.
+
+### Railway point cloud (SNCF Réseau)
+
+About 1.3 km of double-track line with catenary, colourised and classified LiDAR, 150 million
+points in 16 LAZ tiles (1.1 GB, 2013, RGF93 CC44). Source:
+[SNCF Réseau, "Nuage de points 3D des infrastructures ferroviaires"](https://www.data.gouv.fr/datasets/nuage-de-points-3d-des-infrastructures-ferroviaires),
+ODbL 1.0. The dataset does not say how it was captured. It is too large for the repository,
+so `tools/fetch-sncf-pointcloud.sh` downloads it to `models/source/sncf-rail/` and converts it
+with [py3dtiles](https://py3dtiles.org) into a streamable 3D Tiles point cloud in
+`models/tiles/sncf-rail/` (both ignored by git). Serve it from the laptop over USB or any
+static host.
 
 Any other glTF/GLB can be loaded on the phone with **Open .glb…**, for example your own drone
 scan exported from DJI Terra, Pix4D, RealityScan or Polycam. For a model with a large
@@ -37,6 +49,14 @@ python3 tools/ifc2glb.py architecture.ifc structure.ifc mep.ifc -o models/my-bui
 ```
 
 Then add an entry to `MODELS` in `js/config.js`. Each IFC file becomes a layer that can be toggled in the viewer.
+
+For railway models, `--rail-layers` makes the layers track, signalling, cables, energy and
+technical building instead, and `--focus` crops kilometres of track to the area around the
+listed classes (needs `pip install scipy`). The level crossing was made with:
+
+```bash
+python3 tools/ifc2glb.py Signaling_LC_incl_Track_Cables.ifc --rail-layers --focus IfcSignal,IfcDoor,IfcSensor,IfcJunctionBox,IfcCableSegment,IfcBuiltElement,IfcFurniture --margin 12 -o models/rail-level-crossing.glb
+```
 
 ## Run it
 

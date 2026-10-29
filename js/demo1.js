@@ -10,7 +10,7 @@ bootStartOverlay(() => {
   const tracker = new MarkerTracker($('#video'));
   const stage = new ModelStage(ar.anchor('board'));
   stage.setArea(BOARD.page.width, BOARD.page.height, 0.96);
-  createViewer(stage, { defaultModel: 'house' });
+  createViewer(stage, { defaultModel: 'crossing' });
 
   runLoop({
     tracker,
