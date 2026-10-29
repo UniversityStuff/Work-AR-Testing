@@ -5,6 +5,9 @@ import { DICTIONARY, MAX_HAMMING } from './config.js';
 
 export { THREE };
 
+// Shown in the debug overlay, so it's clear which version a phone is running.
+export const BUILD = '2026-10-29 r8';
+
 const params = new URLSearchParams(location.search);
 // Debug overlay is on unless ?nodebug is given.
 export const DEBUG = !params.has('nodebug');
@@ -48,7 +51,8 @@ export class MarkerTracker {
     this.maxSide = maxSide;
     this.canvas = document.createElement('canvas');
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
-    this.worker = new Worker(new URL('./detector-worker.js', import.meta.url));
+    // Pass on the cache-busting query (see the loader in the HTML pages).
+    this.worker = new Worker(new URL(`./detector-worker.js${new URL(import.meta.url).search}`, import.meta.url));
     this.busy = false;
     this.detectMs = 0;
     this.listeners = [];
@@ -550,7 +554,7 @@ export class ARScene {
       `video ${vw}×${vh} · markers ${this.lastMarkers.length} · ${tracked ? 'tracked' : 'not tracked'}`,
       `pose error ${this.lastPoseError.toFixed(1)} px · focal ${this.focalFactor.toFixed(3)} (${this.focalFixed ? 'fixed' : `auto ${this.focalSamples.length}/${FOCAL_SAMPLES}`})`,
       `drawn: ${info.triangles} triangles, ${info.calls} draw calls · camera via ${this.bgMode}`,
-      this.gpuInfo,
+      `build ${BUILD} · ${this.gpuInfo}`,
     ];
     ctx.font = '12px ui-monospace, monospace';
     ctx.fillStyle = 'rgba(0,0,0,.6)';

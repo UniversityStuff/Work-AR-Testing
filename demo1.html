@@ -2,11 +2,23 @@
 <html lang="en" data-needs-app>
 <head>
 <meta charset="utf-8">
-<script src="js/diagnostics.js"></script>
+<script>
+// GitHub Pages lets browsers cache files for 10 minutes, and a reload doesn't refresh
+// scripts. Load our own files with a fresh query so every reload runs the latest code
+// (the large vendor libraries stay cached).
+(function (v) {
+  var map = { imports: {} };
+  ['ar', 'config', 'models', 'viewer', 'ui', 'demo1', 'demo2'].forEach(function (f) {
+    map.imports['./js/' + f + '.js'] = './js/' + f + '.js?v=' + v;
+  });
+  document.write('<script type="importmap">' + JSON.stringify(map) + '<\/script>'
+    + '<script src="js/diagnostics.js?v=' + v + '"><\/script>'
+    + '<link rel="stylesheet" href="css/app.css?v=' + v + '">');
+})(Date.now());
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#0b1120">
 <title>Demo 1 · Model on A4</title>
-<link rel="stylesheet" href="css/app.css">
 </head>
 <body class="ar-body">
 <video id="video" playsinline muted autoplay></video>
@@ -49,6 +61,6 @@
   </div>
 </div>
 
-<script type="module" src="js/demo1.js"></script>
+<script type="module">import './js/demo1.js';</script>
 </body>
 </html>

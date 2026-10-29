@@ -2,7 +2,19 @@
 <html lang="en" data-needs-app>
 <head>
 <meta charset="utf-8">
-<script src="js/diagnostics.js"></script>
+<script>
+// GitHub Pages lets browsers cache files for 10 minutes, and a reload doesn't refresh
+// scripts. Load our own files with a fresh query so every reload runs the latest code
+// (the large vendor libraries stay cached).
+(function (v) {
+  var map = { imports: {} };
+  ['ar', 'config', 'models', 'viewer', 'ui', 'demo1', 'demo2'].forEach(function (f) {
+    map.imports['./js/' + f + '.js'] = './js/' + f + '.js?v=' + v;
+  });
+  document.write('<script type="importmap">' + JSON.stringify(map) + '<\/script>'
+    + '<script src="js/diagnostics.js?v=' + v + '"><\/script>');
+})(Date.now());
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Printable Marker Sheets</title>
 <style>
