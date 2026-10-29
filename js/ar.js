@@ -266,8 +266,11 @@ export function solvePlanarPose(obj, img, K) {
   const r3 = cross(r1, r2);
   const R = [[r1[0], r2[0], r3[0]], [r1[1], r2[1], r3[1]], [r1[2], r2[2], r3[2]]];
   const t = scale(h3, l);
-  if (t[2] <= 0) return null;
-  return refine(R, t, K, obj, img);
+  if (!(t[2] > 0)) return null;
+  const pose = refine(R, t, K, obj, img);
+  // Degenerate detections (e.g. a collinear quad) can produce NaN; never pass those on.
+  const finite = [...pose.R.flat(), ...pose.t, pose.error].every(Number.isFinite);
+  return finite && pose.t[2] > 0 ? pose : null;
 }
 
 // ---------------------------------------------------------------- rendering
@@ -425,7 +428,7 @@ export class ARScene {
     const pose = solvePlanarPose(obj, img, this.K);
     this.lastPoseError = pose ? pose.error : NaN;
     const { vw, vh } = this._videoSize();
-    if (!pose || pose.error > Math.max(12, 0.02 * Math.max(vw, vh))) return false;
+    if (!pose || !(pose.error <= Math.max(12, 0.02 * Math.max(vw, vh)))) return false;
     const a = this.anchors.get(name) || (this.anchor(name), this.anchors.get(name));
     const { R, t } = pose;
     this._m.set(
@@ -448,6 +451,11 @@ export class ARScene {
     const k = 1 - Math.exp(-dt / 0.045); // light smoothing against corner jitter
     for (const a of this.anchors.values()) {
       a.tracked = now - a.lastSeen < this.holdMs;
+      // Self-heal: smoothing can't recover from a non-finite state, so snap to the target.
+      if (![a.pos.x, a.pos.y, a.pos.z, a.quat.x, a.quat.y, a.quat.z, a.quat.w].every(Number.isFinite)) {
+        a.pos.copy(a.targetPos);
+        a.quat.copy(a.targetQuat);
+      }
       a.group.visible = a.tracked;
       if (!a.tracked) continue;
       // Snap on large jumps (fast motion) instead of sliding across the screen.

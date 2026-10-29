@@ -31,10 +31,19 @@ export async function loadModel(def, onProgress) {
   throw lastError || new Error('No model URL');
 }
 
+// Transform from obj's frame into the frame of `frame` (an ancestor, or null),
+// built from local matrices only, so it doesn't depend on the tracked pose.
+function matrixTo(obj, frame) {
+  const m = new THREE.Matrix4();
+  for (let o = obj; o && o !== frame; o = o.parent) {
+    o.updateMatrix();
+    m.premultiply(o.matrix);
+  }
+  return m;
+}
+
 // Up to n vertex positions of everything under root, in root's parent frame.
 function samplePoints(root, n = 30000) {
-  root.updateWorldMatrix(true, true);
-  const toParent = root.parent ? new THREE.Matrix4().copy(root.parent.matrixWorld).invert() : new THREE.Matrix4();
   const meshes = [];
   let total = 0;
   root.traverse((o) => {
@@ -44,9 +53,9 @@ function samplePoints(root, n = 30000) {
     }
   });
   const step = Math.max(1, Math.floor(total / n));
-  const pts = [], v = new THREE.Vector3(), m = new THREE.Matrix4();
+  const pts = [], v = new THREE.Vector3();
   for (const mesh of meshes) {
-    m.multiplyMatrices(toParent, mesh.matrixWorld);
+    const m = matrixTo(mesh, root.parent);
     const pos = mesh.geometry.attributes.position;
     for (let i = 0; i < pos.count; i += step) pts.push(v.fromBufferAttribute(pos, i).applyMatrix4(m).toArray());
   }
