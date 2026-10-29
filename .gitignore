@@ -1,0 +1,4 @@
+# Built locally by tools/make-tiles.sh, too large to commit
+models/tiles/mount-royal-station/
+# Obj2Tiles binary for tools/glb2tiles.py
+tools/Obj2Tiles/

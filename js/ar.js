@@ -6,7 +6,7 @@ import { DICTIONARY, MAX_HAMMING } from './config.js';
 export { THREE };
 
 // Shown in the debug overlay, so it's clear which version a phone is running.
-export const BUILD = '2026-10-29 r8';
+export const BUILD = '2026-10-29 r9 tiles';
 
 const params = new URLSearchParams(location.search);
 // Debug overlay is on unless ?nodebug is given.
@@ -555,10 +555,12 @@ export class ARScene {
       `pose error ${this.lastPoseError.toFixed(1)} px · focal ${this.focalFactor.toFixed(3)} (${this.focalFixed ? 'fixed' : `auto ${this.focalSamples.length}/${FOCAL_SAMPLES}`})`,
       `drawn: ${info.triangles} triangles, ${info.calls} draw calls · camera via ${this.bgMode}`,
       `build ${BUILD} · ${this.gpuInfo}`,
+      // Extra lines from scene content, e.g. tile streaming stats (js/models.js).
+      ...(this.scene.userData.debugLines || []).map((f) => f()).filter(Boolean),
     ];
     ctx.font = '12px ui-monospace, monospace';
     ctx.fillStyle = 'rgba(0,0,0,.6)';
-    ctx.fillRect(8, 64, Math.min(innerWidth - 16, 420), 70);
+    ctx.fillRect(8, 64, Math.min(innerWidth - 16, 420), 6 + 16 * lines.length);
     ctx.fillStyle = '#fff';
     lines.forEach((l, i) => ctx.fillText(l, 14, 82 + i * 16));
   }

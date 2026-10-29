@@ -1,7 +1,7 @@
 // Shared model-viewer UI for both demos: model picker, rotate, BIM layers,
 // loading progress, credits and a "clean view" toggle for presenting.
 import { MODELS } from './config.js';
-import { loadModel } from './models.js';
+import { loadModel, loadTiles } from './models.js';
 import { $ } from './ui.js';
 
 export function createViewer(stage, { defaultModel }) {
@@ -43,17 +43,23 @@ export function createViewer(stage, { defaultModel }) {
     $('#model-credit').textContent = def.credit;
     setLoading(`Loading ${def.name}${def.note ? ` (${def.note})` : ''}…`, NaN);
     try {
-      const gltf = await loadModel(def, (f, bytes) => {
+      const model = def.tiles ? await loadTiles(def) : (await loadModel(def, (f, bytes) => {
         if (token === loadToken) setLoading(`Loading ${def.name}… ${(bytes / 1e6).toFixed(1)} MB`, f);
-      });
-      if (token !== loadToken) return;
-      stage.setModel(gltf.scene, def);
+      })).scene;
+      if (token !== loadToken) return model.userData.tiles?.dispose();
+      stage.setModel(model, def);
       const layers = stage.layers();
       $('#layers-btn').hidden = layers.length < 2;
       $('#layers').hidden = true;
       $('#layers').innerHTML = layers.map((l) =>
         `<label class="pill"><input type="checkbox" data-layer="${l}" checked> ${l.replace(/-/g, ' ')}</label>`).join('');
-      setLoading(null);
+      if (def.tiles) {
+        // Tiles stream in once the markers are in view.
+        setLoading(`Streaming ${def.name}…`, NaN);
+        model.userData.ready.then(() => token === loadToken && setLoading(null));
+      } else {
+        setLoading(null);
+      }
     } catch (e) {
       if (token !== loadToken) return;
       setLoading(null);
@@ -62,6 +68,9 @@ export function createViewer(stage, { defaultModel }) {
     }
   }
 
-  show(MODELS.find((m) => m.id === defaultModel) || MODELS[0]);
+  // ?tiles=<url of tileset.json> streams any tileset, e.g. one in cloud storage.
+  const tilesUrl = new URLSearchParams(location.search).get('tiles');
+  if (tilesUrl) show({ id: 'url', name: 'Tileset', kind: '3D Tiles (streamed)', credit: tilesUrl, tiles: tilesUrl });
+  else show(MODELS.find((m) => m.id === defaultModel) || MODELS[0]);
   return { get current() { return current; } };
 }

@@ -1,0 +1,2 @@
+3d-tiles-renderer 0.3.46 (https://github.com/NASA-AMMOS/3DTilesRendererJS)
+three imports rewritten to vendor/three (r160) by tools/vendor-3d-tiles.mjs

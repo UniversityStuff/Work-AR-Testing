@@ -1,9 +1,14 @@
-// Loads glTF/GLB models (BIM conversions or drone scans) and fits them onto a
-// rectangular area of a tracked anchor (an A4 sheet or a table).
+// Loads glTF/GLB models (BIM conversions or drone scans) or streams 3D Tiles
+// tilesets, and fits them onto a rectangular area of a tracked anchor (an A4
+// sheet or a table).
 import { THREE } from './ar.js';
 import { GLTFLoader } from '../vendor/three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from '../vendor/three/addons/loaders/DRACOLoader.js';
 import { MeshoptDecoder } from '../vendor/three/addons/libs/meshopt_decoder.module.js';
+import { estimateBytesUsed } from '../vendor/three/addons/utils/BufferGeometryUtils.js';
+import { TilesRenderer } from '../vendor/3d-tiles-renderer/src/three/TilesRenderer.js';
+import { GLTFExtensionsPlugin } from '../vendor/3d-tiles-renderer/src/plugins/three/GLTFExtensionsPlugin.js';
+import { ReorientationPlugin } from '../vendor/3d-tiles-renderer/src/plugins/three/ReorientationPlugin.js';
 
 const loader = new GLTFLoader();
 const draco = new DRACOLoader();
@@ -29,6 +34,58 @@ export async function loadModel(def, onProgress) {
     }
   }
   throw lastError || new Error('No model URL');
+}
+
+const MB = 1e6;
+
+// GPU memory of a loaded tile. The tile renderer measures this with
+// THREE.TextureUtils, which three r160 doesn't have, so it would count every
+// tile as 0 bytes and never enforce its memory budget.
+function sceneBytes(scene) {
+  let bytes = 0;
+  const seen = new Set();
+  scene.traverse((o) => {
+    if (o.geometry && !seen.has(o.geometry)) {
+      seen.add(o.geometry);
+      bytes += estimateBytesUsed(o.geometry);
+    }
+    for (const m of [o.material].flat()) {
+      const img = m?.map?.image;
+      if (img && !seen.has(img)) {
+        seen.add(img);
+        bytes += (img.width * img.height * 4 * 4) / 3; // RGBA plus mipmaps
+      }
+    }
+  });
+  return bytes;
+}
+
+// Streams a 3D Tiles tileset (def.tiles = URL of tileset.json): the phone only
+// downloads the tiles in view, at the detail the current distance needs. Returns
+// the tiles' group; ModelStage keeps the tile renderer updated every frame.
+export async function loadTiles(def) {
+  // Fail early with a clear message instead of a console error per frame.
+  const res = await fetch(def.tiles);
+  if (!res.ok) throw new Error(`${def.tiles} returned HTTP ${res.status}`);
+  await res.json();
+
+  const tiles = new TilesRenderer(new URL(def.tiles, location.href).href);
+  tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader: draco, meshoptDecoder: MeshoptDecoder }));
+  // Moves georeferenced (ECEF) tilesets to the origin. Either way the result is Y up, like glTF.
+  tiles.registerPlugin(new ReorientationPlugin({ up: '+z', recenter: true }));
+  // Stay well inside a phone's GPU memory; least recently used tiles are dropped first.
+  tiles.lruCache.minBytesSize = 150 * MB;
+  tiles.lruCache.maxBytesSize = 250 * MB;
+  tiles.addEventListener('load-model', ({ scene, tile }) => {
+    prepareMaterials(scene);
+    tile.cached.bytesUsed = sceneBytes(scene);
+  });
+  tiles.group.userData.tiles = tiles;
+  tiles.group.userData.ready = new Promise((resolve) => {
+    const done = () => { tiles.removeEventListener('load-model', done); resolve(); };
+    tiles.addEventListener('load-model', done);
+  });
+  return tiles.group;
 }
 
 // Transform from obj's frame into the frame of `frame` (an ancestor, or null),
@@ -110,8 +167,9 @@ function prepareMaterials(model) {
     if (!o.isMesh) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     const out = mats.map((m) => {
-      if (m.map) {
-        limitTexture(m.map);
+      if (m.map) limitTexture(m.map);
+      // Already unlit materials (e.g. tiles) are kept: the tile renderer disposes the ones it made.
+      if (m.map && !m.isMeshBasicMaterial) {
         return new THREE.MeshBasicMaterial({ map: m.map, side: THREE.DoubleSide, transparent: m.transparent, opacity: m.opacity });
       }
       m.side = THREE.DoubleSide;
@@ -119,6 +177,23 @@ function prepareMaterials(model) {
     });
     o.material = Array.isArray(o.material) ? out : out[0];
   });
+}
+
+// Bounds of the root bounding volume of a tileset, in the frame of `frame`. The
+// full mesh of a tileset is never loaded, so this is what it is fitted to.
+function tilesBounds(tiles, frame) {
+  const box = new THREE.Box3(), m = new THREE.Matrix4();
+  if (!tiles.getOrientedBoundingBox(box, m)) return null;
+  m.premultiply(matrixTo(tiles.group, frame));
+  const out = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] }, v = new THREE.Vector3();
+  for (let i = 0; i < 8; i++) {
+    v.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).applyMatrix4(m);
+    for (let k = 0; k < 3; k++) {
+      out.min[k] = Math.min(out.min[k], v.getComponent(k));
+      out.max[k] = Math.max(out.max[k], v.getComponent(k));
+    }
+  }
+  return out;
 }
 
 // anchor -> stage (area center) -> yaw (90° steps) -> fit (scale/offset) -> up -> model
@@ -139,12 +214,55 @@ export class ModelStage {
 
   setModel(model, def = {}) {
     if (this.model) this.up.remove(this.model);
+    this.tiles?.dispose();
     this.model = model;
-    prepareMaterials(model);
-    this.robust = def.up === 'auto';
-    this.up.quaternion.copy(upRotation(model, def.up));
+    this.tiles = model.userData.tiles || null;
+    if (this.tiles) {
+      this.hookTiles();
+      // The root bounding volume is known once tileset.json is in.
+      this.tiles.addEventListener('load-tile-set', () => this.refit());
+      this.up.quaternion.copy(upRotation(model)); // the tile renderer's output is Y up
+    } else {
+      prepareMaterials(model);
+      this.robust = def.up === 'auto';
+      this.up.quaternion.copy(upRotation(model, def.up));
+    }
     this.up.add(model);
     this.refit();
+  }
+
+  // The tile renderer picks tiles for the camera that draws them, so update it
+  // right before each frame is drawn, when the anchor pose is final.
+  hookTiles() {
+    if (this.hooked) return;
+    this.hooked = true;
+    let scene = this.stage;
+    while (scene.parent) scene = scene.parent;
+    const size = new THREE.Vector2(), prev = scene.onBeforeRender;
+    scene.onBeforeRender = (renderer, s, camera, ...rest) => {
+      prev.call(scene, renderer, s, camera, ...rest);
+      const { tiles } = this;
+      if (!tiles) return;
+      // Download nothing for a pose that isn't shown (the root tileset.json loads regardless).
+      let shown = true;
+      for (let o = this.stage; o; o = o.parent) shown &&= o.visible;
+      if (!shown && tiles.root) return;
+      tiles.setCamera(camera);
+      // CSS pixels, so the detail doesn't depend on the screen's pixel density.
+      renderer.getSize(size);
+      tiles.setResolution(camera, size.x, size.y);
+      tiles.update();
+    };
+    // Shown in the debug overlay (see ARScene._drawDebug).
+    (scene.userData.debugLines ||= []).push(() => {
+      const { tiles } = this;
+      if (!tiles) return null;
+      let depth = 0;
+      for (const t of tiles.visibleTiles) depth = Math.max(depth, t.__depth);
+      const { visible, downloading, parsing, failed } = tiles.stats;
+      return `tiles: ${visible} shown, depth ${depth} · ${downloading + parsing} loading`
+        + `${failed ? `, ${failed} failed` : ''} · ${(tiles.lruCache.cachedBytes / MB).toFixed(0)} MB cached`;
+    });
   }
 
   setArea(width, depth, margin = this.area.margin) {
@@ -173,7 +291,9 @@ export class ModelStage {
     this.yaw.rotation.z = this.turns * Math.PI / 2;
     this.fit.scale.setScalar(1);
     this.fit.position.set(0, 0, 0);
-    const b = this.robust ? robustBounds(samplePoints(this.up)) : robustBounds(samplePoints(this.up), 0, 1);
+    const b = this.tiles ? tilesBounds(this.tiles, this.fit)
+      : this.robust ? robustBounds(samplePoints(this.up)) : robustBounds(samplePoints(this.up), 0, 1);
+    if (!b) return;
     // samplePoints gives coordinates in fit's frame; the footprint is turned by yaw.
     const odd = this.turns % 2 === 1;
     const sx = b.max[0] - b.min[0], sy = b.max[1] - b.min[1];
