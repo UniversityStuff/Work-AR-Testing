@@ -145,6 +145,21 @@ function homography(obj, img) {
   return mul3(mul3(TiInv, Hn), To);
 }
 
+// RMS pixel error of the best homography through these correspondences. Used to
+// measure board layouts: the right layout makes all markers fit one plane mapping.
+export function homographyRms(obj, img) {
+  const H = homography(obj, img);
+  if (!H) return Infinity;
+  let e = 0;
+  for (let i = 0; i < obj.length; i++) {
+    const { x, y } = obj[i];
+    const w = H[2][0] * x + H[2][1] * y + H[2][2];
+    const u = (H[0][0] * x + H[0][1] * y + H[0][2]) / w, v = (H[1][0] * x + H[1][1] * y + H[1][2]) / w;
+    e += (u - img[i].x) ** 2 + (v - img[i].y) ** 2;
+  }
+  return Math.sqrt(e / obj.length);
+}
+
 function mul3(a, b) {
   const r = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
   for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) r[i][j] += a[i][k] * b[k][j];
@@ -432,68 +447,4 @@ export function runLoop({ tracker, ar, onMarkers, onFrame }) {
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
-}
-
-// ---------------------------------------------------------------- content helpers
-
-// A camera-facing label drawn on a canvas. draw(ctx, w, h) paints it.
-export function makeLabel(widthPx, heightPx, worldHeight, draw) {
-  const canvas = document.createElement('canvas');
-  canvas.width = widthPx;
-  canvas.height = heightPx;
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
-  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
-  const sprite = new THREE.Sprite(material);
-  sprite.renderOrder = 10;
-  sprite.scale.set(worldHeight * widthPx / heightPx, worldHeight, 1);
-  sprite.redraw = (fn = draw) => {
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, widthPx, heightPx);
-    fn(ctx, widthPx, heightPx);
-    texture.needsUpdate = true;
-  };
-  sprite.redraw(draw);
-  return sprite;
-}
-
-export function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
-}
-
-// Standard callout card: title + lines, accent bar on the left.
-export function drawCard(ctx, w, h, { title, lines = [], accent = '#38bdf8', bg = 'rgba(15,23,42,0.88)' }) {
-  roundRect(ctx, 4, 4, w - 8, h - 8, 28);
-  ctx.fillStyle = bg;
-  ctx.fill();
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = accent;
-  ctx.stroke();
-  ctx.fillStyle = accent;
-  roundRect(ctx, 4, 4, 18, h - 8, [28, 0, 0, 28]);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.textBaseline = 'top';
-  ctx.font = `700 ${Math.round(h * 0.2)}px system-ui, sans-serif`;
-  ctx.fillText(title, 44, h * 0.12, w - 70);
-  ctx.fillStyle = '#cbd5e1';
-  ctx.font = `500 ${Math.round(h * 0.14)}px system-ui, sans-serif`;
-  lines.forEach((l, i) => ctx.fillText(l, 44, h * (0.42 + i * 0.2), w - 70));
-}
-
-// Line from a part to its callout (both in the same anchor's frame).
-export function leaderLine(color = 0xffffff) {
-  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true }));
-  line.renderOrder = 9;
-  line.setEnds = (a, b) => {
-    const p = geo.attributes.position;
-    p.setXYZ(0, a.x, a.y, a.z);
-    p.setXYZ(1, b.x, b.y, b.z);
-    p.needsUpdate = true;
-    geo.computeBoundingSphere();
-  };
-  return line;
 }

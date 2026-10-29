@@ -1,29 +1,58 @@
-# AR at Work: phone demo for the AR-glasses case
+# AR BIM viewer: phone demo for the AR-glasses case
 
-Two short hands-on AR demos that use printed fiducial markers (ArUco). They run in
-**Chrome on Android** as a plain web page: no app, no install, no build step.
-Each demo ends with a summary of what holding the phone cost the user (taps,
-tracking losses, time without guidance in view), which you can use to argue for
-AR glasses.
+Two short AR demos that place a complete building model (BIM or a drone scan) on printed
+fiducial markers (ArUco). They run in **Chrome on Android** as a plain web page: no app, no
+install, no build step.
 
-| | Demo 1: one A4 sheet | Demo 2: four A4 sheets spread apart |
+| | Demo 1: one A4 sheet | Demo 2: four A4 sheets on the table corners |
 |---|---|---|
-| Scenario | Guided filter change at one workstation | Repair order across four stations (A → C → B → D) |
-| Markers | 4 corner markers on one landscape A4 sheet (IDs 0–3). One visible marker is enough. | 1 large marker per portrait A4 sheet (IDs 4–7) |
-| AR content | Virtual machine on the sheet, animated parts, arrows, callouts | Live info panel, 3D icon and task status above each station; progress ring while calibrating |
-| Measured | total time, taps, tracking losses, time without guidance | total time, % of time with no AR guidance in view, times the phone was aimed, calibration interruptions, wrong-station views, taps |
+| Markers | 4 small markers in the corners of one landscape A4 sheet (IDs 0–3). One visible marker is enough. | 1 large marker per portrait A4 sheet, one sheet per table corner (IDs 4–7) |
+| Model size | Scaled to fill the sheet | Scaled to fill the whole table |
+| Setup | Lay the sheet on a table | Push each sheet into its labelled corner; the demo measures the table from the sheets (or type the size) |
+
+## Models
+
+| Model | Type | Source | License |
+|---|---|---|---|
+| Single-family house | BIM, IFC4 (architecture, structure, HVAC, landscaping) | [buildingSMART Sample-Test-Files, "Simple-Scene"](https://github.com/buildingSMART/Sample-Test-Files) | CC BY 4.0, © buildingSMART International Ltd. |
+| House, road, rail & bridge site | BIM, IFC4, all 10 discipline models of the same scene | same | same |
+| Commercial building | Textured drone photogrammetry (RealityScan), 951 photos | [Matt1Up/drone-building-scans-dataset](https://github.com/Matt1Up/drone-building-scans-dataset), flat-roof scan | CC BY 4.0, Matt1up |
+
+The BIM models were converted from IFC with `tools/ifc2glb.py` and are committed in `models/`.
+The drone scan (about 22 MB) is downloaded from Hugging Face at runtime. To bundle it instead
+(e.g. for offline presentations), run `tools/fetch-models.sh` and commit `models/drone-flat-roof.glb`.
+
+Any other glTF/GLB can be loaded on the phone with **Open .glb…**, for example your own drone
+scan exported from DJI Terra, Pix4D, RealityScan or Polycam. For a model with a large
+georeferenced offset or Z-up axes, the viewer finds the up axis and centers the model
+automatically. Keep scans for phones under ~50 MB, with textures of 4096 px or less.
+
+### Converting your own IFC model
+
+```bash
+pip install ifcopenshell trimesh numpy
+```
+```bash
+python3 tools/ifc2glb.py architecture.ifc structure.ifc mep.ifc -o models/my-building.glb
+```
+
+Then add an entry to `MODELS` in `js/config.js`. Each IFC file becomes a layer that can be toggled in the viewer.
 
 ## Run it
 
 1. **Print** the sheets on DIN A4 at 100 % scale (matte paper works best):
    - [`markers/demo1-board-A4.pdf`](markers/demo1-board-A4.pdf): 1 page, landscape
-   - [`markers/demo2-stations-A4.pdf`](markers/demo2-stations-A4.pdf): 4 pages, portrait
+   - [`markers/demo2-table-corners-A4.pdf`](markers/demo2-table-corners-A4.pdf): 4 pages, portrait
 
    Or open `markers.html` and print from the browser.
-2. **Place** them. For Demo 1, lay the sheet flat on a table. For Demo 2, tape the four
-   sheets around the room a few meters apart, at chest height (on walls, shelves or tables).
+2. **Place** them. For Demo 1, lay the sheet flat on a table. For Demo 2, push each sheet into its
+   labelled corner of the table with the arrow pointing to the side you stand on.
 3. **Open** the site on the phone over **HTTPS** (browsers only allow the camera on secure
    pages), choose a demo and tap *Start camera*.
+4. **Demo 2, first run:** step back until at least three corner sheets are in view. The table is
+   measured in a few seconds and remembered on the phone. 📏 measures again or lets you type the size.
+
+👁 hides all controls for a clean view while presenting.
 
 ### Hosting options (camera needs HTTPS or localhost)
 
@@ -32,11 +61,7 @@ AR glasses.
   *Actions* tab). The demo is then at `https://<owner>.github.io/<repo>/`, e.g.
   `https://universitystuff.github.io/Work-AR-Testing/`.
   Private repos need a paid GitHub plan for Pages.
-- Opening the files directly (double-click, `file://`, or the file view on github.com) or over
-  plain `http://` with an IP address does **not** work. The pages now show a red message
-  explaining the problem when that happens.
 - **Any static HTTPS host** works too (Netlify Drop, Cloudflare Pages, an internal web server).
-  Upload the folder as it is.
 - **Laptop + USB cable**, no hosting needed:
   ```bash
   python3 -m http.server 8000
@@ -44,33 +69,36 @@ AR glasses.
   ```bash
   adb reverse tcp:8000 tcp:8000
   ```
-  Then open `http://localhost:8000` in Chrome on the phone. Chrome treats `localhost` as secure.
+  Then open `http://localhost:8000` in Chrome on the phone.
+- Opening the files directly (double-click, `file://`, or the file view on github.com) or over
+  plain `http://` with an IP address does **not** work. The pages show a red message explaining
+  the problem when that happens.
 
 ## Tips and troubleshooting
 
-- Use good, even light and avoid glare on the paper. In Demo 2 the large markers are detected from about 3–4 m away.
+- Use good, even light and avoid glare on the paper.
 - `?debug` (e.g. `demo1.html?debug`) outlines the detected markers and their IDs.
 - `?f=0.85` overrides the assumed camera focal length (as a fraction of the longer image side;
-  the default of 0.75 fits most phone main cameras). Change it if 3D objects seem to float or
+  the default of 0.75 fits most phone main cameras). Change it if the model seems to float or
   sink relative to the paper at steep viewing angles.
+- If the table measurement warns that the sheets don't line up, check that each sheet is in its
+  labelled corner and that all arrows point to the front.
 
 ## How it works
 
 ```
 camera (getUserMedia) ──► frame downscaled to ≤960/1280 px ──► Web Worker: js-aruco2 (ARUCO_MIP_36h12)
                                                                        │ marker IDs + corners
-three.js overlay ◄── smoothed pose ◄── homography + Levenberg-Marquardt refinement (js/ar.js)
+three.js + GLTFLoader ◄── smoothed pose ◄── homography + Levenberg-Marquardt refinement (js/ar.js)
 ```
 
-- `js/config.js` is the single source of truth for marker IDs, sizes and positions. Both
-  `markers.html` (printing) and the trackers read it, so the printed sheets and the
-  tracking always match.
-- `js/ar.js` has the camera, the detection worker, planar pose estimation and the three.js scene
-  (the projection is matched to the `object-fit: cover` video).
-- `js/demo1.js` and `js/demo2.js` hold the scenario logic and the 3D content.
-- `vendor/` holds the libraries, committed so the demo also works without CDN access:
-  [js-aruco2](https://github.com/damianofalcioni/js-aruco2) 2.0.0 and
-  [three.js](https://threejs.org) r160 (both MIT, licenses included).
-
-To change the scenario text (e.g. to translate it or use your own process), edit `STEPS` in
-`js/demo1.js`, `TASKS` in `js/demo2.js` and `STATIONS` in `js/config.js`.
+- `js/config.js`: marker IDs, sizes and layouts, plus the model list. Both `markers.html`
+  (printing) and the trackers read it.
+- `js/ar.js`: camera, detection worker, planar pose estimation and the three.js scene.
+- `js/models.js`: GLB loading (Draco and meshopt supported), up-axis detection and fitting the
+  model to the sheet or the table.
+- `js/viewer.js`: model picker, rotate, BIM layers and the clean-view toggle.
+- `js/demo1.js` / `js/demo2.js`: the two setups. Demo 2 measures the table by finding the marker
+  spacing for which all visible corner markers fit one plane mapping.
+- `vendor/`: [js-aruco2](https://github.com/damianofalcioni/js-aruco2) 2.0.0 and
+  [three.js](https://threejs.org) r160 with its glTF/Draco/meshopt addons (all MIT, licenses included).

@@ -1,20 +1,20 @@
-// Single source of truth for the printed sheets and the trackers.
-// All sizes are in meters. Sheet coordinates: origin as noted, +x to the
-// right, +y towards the top edge of the sheet, +z out of the paper.
+// Single source of truth for the printed sheets, the trackers and the models.
+// All sizes are in meters. Sheet/table coordinates: origin at the center,
+// +x to the right, +y away from the viewer (towards the top edge / back of
+// the table), +z up out of the paper.
 
 export const DICTIONARY = 'ARUCO_MIP_36h12';
 // Reject detections with more flipped bits than this (36h12 can correct up to 5).
 export const MAX_HAMMING = 3;
 
 // Demo 1: one DIN A4 sheet in landscape with a marker in every corner.
-// Any single visible marker is enough to track the whole sheet, so hands
-// can cover parts of it while "working".
+// Any single visible marker is enough to track the whole sheet.
 const BOARD_W = 0.297, BOARD_H = 0.210, BOARD_MARKER = 0.05, BOARD_MARGIN = 0.014;
 const bx = BOARD_W / 2 - BOARD_MARGIN - BOARD_MARKER / 2;
 const by = BOARD_H / 2 - BOARD_MARGIN - BOARD_MARKER / 2;
 
 export const BOARD = {
-  page: { width: BOARD_W, height: BOARD_H },     // origin = center of the sheet
+  page: { width: BOARD_W, height: BOARD_H },
   markerSize: BOARD_MARKER,
   markers: [
     { id: 0, x: -bx, y: by },   // top left
@@ -24,17 +24,46 @@ export const BOARD = {
   ],
 };
 
-// Demo 2: four DIN A4 sheets (portrait), one big marker each, placed apart.
-// Origin of each station = center of its marker.
-export const STATION_PAGE = { width: 0.210, height: 0.297 };
-export const STATION_MARKER_SIZE = 0.17;
-export const STATION_MARKER_TOP = 0.02; // distance from top edge of the page
+// Demo 2: four DIN A4 sheets (portrait), one per table corner, all with their
+// bottom edge facing the front of the table. The marker is centered on the
+// sheet, so a sheet pushed into a corner has its marker center this far from
+// the side edge (x) and the front/back edge (y):
+export const CORNER_PAGE = { width: 0.210, height: 0.297 };
+export const CORNER_MARKER_SIZE = 0.17;
+export const CORNER_INSET = { x: CORNER_PAGE.width / 2, y: CORNER_PAGE.height / 2 };
 
-export const STATIONS = [
-  { id: 4, key: 'A', name: 'Storage',    color: '#3b82f6', info: ['Bin A-03 · Sensor X-12', '14 pcs in stock'] },
-  { id: 5, key: 'B', name: 'Assembly',   color: '#f59e0b', info: ['Line 2 · Unit P-200', 'Cycle 48 s · OEE 87 %'] },
-  { id: 6, key: 'C', name: 'Test bench', color: '#a855f7', info: ['Temp 41 °C · 2.3 bar', 'Bench free'] },
-  { id: 7, key: 'D', name: 'Shipping',   color: '#10b981', info: ['Order #4711', 'Pickup today 14:30'] },
+export const TABLE_CORNERS = [
+  { id: 4, key: 'front-left', label: 'Front left', sx: -1, sy: -1 },
+  { id: 5, key: 'front-right', label: 'Front right', sx: 1, sy: -1 },
+  { id: 6, key: 'back-right', label: 'Back right', sx: 1, sy: 1 },
+  { id: 7, key: 'back-left', label: 'Back left', sx: -1, sy: 1 },
+];
+
+export const DEFAULT_TABLE = { width: 1.6, depth: 0.8 }; // outer table size
+
+// Marker layout for a table of the given outer size.
+export function tableBoard({ width, depth }) {
+  const hx = width / 2 - CORNER_INSET.x, hy = depth / 2 - CORNER_INSET.y;
+  return {
+    markerSize: CORNER_MARKER_SIZE,
+    markers: TABLE_CORNERS.map((c) => ({ id: c.id, x: c.sx * hx, y: c.sy * hy })),
+  };
+}
+
+// Models the viewer can show. `url` is tried first, then `fallbackUrl`.
+// Models are standard glTF (Y up). `up: 'auto'` guesses the up axis for scans
+// exported in other conventions.
+const BS_CREDIT = 'buildingSMART International, "Simple-Scene" sample (IFC4), CC BY 4.0';
+const DRONE_CREDIT = 'Matt1up, "drone-building-scans" flat-roof reconstruction, CC BY 4.0';
+export const MODELS = [
+  { id: 'house', name: 'Single-family house', kind: 'BIM (IFC)', url: 'models/bim-house.glb', credit: BS_CREDIT },
+  { id: 'site', name: 'House, road, rail & bridge site', kind: 'BIM (IFC)', url: 'models/bim-site.glb', credit: BS_CREDIT },
+  {
+    id: 'drone', name: 'Commercial building', kind: 'Drone scan', up: 'auto', credit: DRONE_CREDIT,
+    url: 'models/drone-flat-roof.glb',
+    fallbackUrl: 'https://huggingface.co/datasets/Matt1up/drone-building-scans/resolve/main/flat-roof/model/flat-roof.glb',
+    note: 'about 22 MB, loads from Hugging Face',
+  },
 ];
 
 // Corners of a square marker in the order the detector reports them
@@ -47,4 +76,16 @@ export function markerCorners(cx, cy, size) {
     { x: cx + h, y: cy - h },
     { x: cx - h, y: cy - h },
   ];
+}
+
+// Image/plane correspondences for all detected markers that belong to a board.
+export function boardCorrespondences(board, markers) {
+  const obj = [], img = [];
+  for (const m of markers) {
+    const def = board.markers.find((b) => b.id === m.id);
+    if (!def) continue;
+    obj.push(...markerCorners(def.x, def.y, board.markerSize));
+    img.push(...m.corners);
+  }
+  return { obj, img };
 }

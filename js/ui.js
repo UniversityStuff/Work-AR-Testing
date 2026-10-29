@@ -5,11 +5,6 @@ export const $ = (sel) => document.querySelector(sel);
 
 window.__appReady = true; // seen by diagnostics.js
 
-export function formatTime(ms) {
-  const s = Math.max(0, Math.round(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-
 // Wires up the start overlay: on tap, go fullscreen, open the camera, then call onReady().
 export function bootStartOverlay(onReady) {
   const overlay = $('#start'), button = $('#start-btn'), err = $('#start-error');
@@ -30,8 +25,4 @@ export function bootStartOverlay(onReady) {
       button.disabled = false;
     }
   });
-}
-
-export function metric(value, label, bad = false) {
-  return `<div class="metric${bad ? ' bad' : ''}"><div class="v">${value}</div><div class="l">${label}</div></div>`;
 }

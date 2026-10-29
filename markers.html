@@ -28,13 +28,14 @@
   .work-area p { margin: 0 0 2mm; font-size: 3.6mm; color: var(--muted); line-height: 1.35; }
   .footer { position: absolute; left: 0; right: 0; bottom: 5mm; text-align: center; font-size: 3mm; color: #94a3b8; }
 
-  .station-info { position: absolute; left: 20mm; right: 20mm; top: 200mm; display: flex; gap: 8mm; align-items: center; }
-  .badge { width: 34mm; height: 34mm; border-radius: 50%; color: #fff; font-size: 22mm; font-weight: 800; display: grid; place-items: center; flex: none; }
-  .station-info h1 { margin: 0; font-size: 12mm; }
-  .station-info p { margin: 2mm 0 0; font-size: 4.2mm; color: var(--muted); line-height: 1.35; }
-  .station-tip { position: absolute; left: 20mm; right: 20mm; top: 250mm; font-size: 3.8mm; color: var(--muted); line-height: 1.4;
-    border-top: 0.4mm solid #e2e8f0; padding-top: 5mm; }
-
+  .corner-head { position: absolute; left: 20mm; right: 20mm; top: 12mm; height: 44mm; display: flex; align-items: center; justify-content: space-between; gap: 6mm; }
+  .corner-head h1 { margin: 0; font-size: 13mm; line-height: 1; }
+  .corner-head p { margin: 2mm 0 0; font-size: 4mm; color: var(--muted); }
+  .corner-head svg { width: 46mm; flex: none; }
+  .corner-foot { position: absolute; left: 20mm; right: 20mm; top: 240mm; text-align: center; font-size: 4.4mm; font-weight: 700; }
+  .corner-foot .arrow { font-size: 14mm; line-height: 1; display: block; }
+  .corner-foot p { margin: 1mm 0 0; font-weight: 400; font-size: 3.6mm; color: var(--muted); }
+  .bracket { position: absolute; width: 16mm; height: 16mm; border: 0 solid #0f172a; }
   @media print {
     body { background: #fff; }
     .toolbar { display: none; }
@@ -48,7 +49,7 @@
 <div class="toolbar">
   <button class="primary" onclick="print()">Print</button>
   <a href="?set=board">Demo 1: single sheet</a>
-  <a href="?set=stations">Demo 2: four stations</a>
+  <a href="?set=table">Demo 2: table corners</a>
   <a href="./">Back</a>
   <span class="hint">Print on DIN A4 at 100 % / "actual size", no "fit to page". Matte paper works best (less glare).</span>
 </div>
@@ -57,7 +58,7 @@
 <script src="vendor/aruco/cv.js"></script>
 <script src="vendor/aruco/aruco.js"></script>
 <script type="module">
-import { DICTIONARY, BOARD, STATIONS, STATION_PAGE, STATION_MARKER_SIZE, STATION_MARKER_TOP } from './js/config.js';
+import { DICTIONARY, BOARD, TABLE_CORNERS, CORNER_PAGE, CORNER_MARKER_SIZE } from './js/config.js';
 
 const dict = new AR.Dictionary(DICTIONARY);
 const mm = (m) => `${(m * 1000).toFixed(2)}mm`;
@@ -87,46 +88,52 @@ function boardPage() {
   }
   el.insertAdjacentHTML('beforeend', `
     <div class="work-area">
-      <h1>AR Demo 1 · Workstation</h1>
+      <h1>AR Demo 1 · Model on A4</h1>
       <p>Lay this sheet flat on a table and point the phone at it.</p>
-      <p>A virtual machine appears here and guides you through a maintenance job step by step.</p>
-      <p>One visible corner marker is enough, so your hands may cover the others.</p>
+      <p>A complete building model appears standing on this sheet.</p>
+      <p>One visible corner marker is enough to keep it in place.</p>
     </div>
     <div class="footer">Print at 100 % · ArUco ${DICTIONARY} · IDs ${markers.map((m) => m.id).join(', ')}</div>`);
   return el;
 }
 
-function stationPage(st) {
+// Small table diagram with this sheet's corner highlighted.
+function tableSVG(c) {
+  const x = c.sx < 0 ? 4 : 56, y = c.sy < 0 ? 26 : 4;
+  return `<svg viewBox="0 0 60 36"><rect x="2" y="2" width="56" height="26" rx="2" fill="#f1f5f9" stroke="#0f172a" stroke-width="1.2"/>
+    <rect x="${x - 3}" y="${y - 2}" width="6" height="6" fill="#2563eb"/>
+    <text x="30" y="34.5" font-size="5" text-anchor="middle" fill="#475569" font-family="system-ui">you stand here ↓</text></svg>`;
+}
+
+function cornerPage(c) {
   const el = document.createElement('section');
   el.className = 'page portrait';
-  const left = (STATION_PAGE.width - STATION_MARKER_SIZE) / 2;
-  el.append(marker(st.id, left, STATION_MARKER_TOP, STATION_MARKER_SIZE));
+  const left = (CORNER_PAGE.width - CORNER_MARKER_SIZE) / 2, top = (CORNER_PAGE.height - CORNER_MARKER_SIZE) / 2;
+  el.append(marker(c.id, left, top, CORNER_MARKER_SIZE));
+  // L-shaped bracket in the page corner that goes into the table corner.
+  const side = c.sx < 0 ? 'left' : 'right', end = c.sy < 0 ? 'bottom' : 'top';
   el.insertAdjacentHTML('beforeend', `
-    <div class="station-info">
-      <div class="badge" style="background:${st.color}">${st.key}</div>
-      <div>
-        <h1>${st.name}</h1>
-        <p>AR Demo 2 · Station ${st.key} of ${STATIONS.length}</p>
-      </div>
+    <div class="corner-head">
+      <div><h1>${c.label}</h1><p>AR Demo 2 · table corner sheet</p></div>
+      ${tableSVG(c)}
     </div>
-    <div class="station-tip">
-      Tape the four station sheets at different places in the room, a few meters apart
-      (on walls, shelves or tables, roughly at chest height). The demo sends you from station to station.
-    </div>
-    <div class="footer">Print at 100 % · ArUco ${DICTIONARY} · ID ${st.id}</div>`);
+    <div class="bracket" style="${side}:6mm;${end}:6mm;border-${side}-width:1.6mm;border-${end}-width:1.6mm"></div>
+    <div class="corner-foot"><span class="arrow">↓</span>This edge faces you (front of the table)
+      <p>Push the sheet into the ${c.label.toLowerCase()} corner of the table, so the bracket sits in the corner.</p></div>
+    <div class="footer">Print at 100 % · ArUco ${DICTIONARY} · ID ${c.id}</div>`);
   return el;
 }
 
 const set = new URLSearchParams(location.search).get('set') || 'board';
 const pages = document.getElementById('pages');
-if (set === 'stations') {
+if (set === 'table') {
   document.getElementById('page-size').textContent = '@page { size: A4 portrait; margin: 0; }';
-  STATIONS.forEach((st) => pages.append(stationPage(st)));
+  TABLE_CORNERS.forEach((c) => pages.append(cornerPage(c)));
 } else {
   document.getElementById('page-size').textContent = '@page { size: A4 landscape; margin: 0; }';
   pages.append(boardPage());
 }
-document.title = set === 'stations' ? 'Demo 2 Station Sheets' : 'Demo 1 Board Sheet';
+document.title = set === 'table' ? 'Demo 2 Table Corner Sheets' : 'Demo 1 Board Sheet';
 document.body.dataset.ready = '1';
 window.__appReady = true;
 </script>

@@ -17,9 +17,17 @@ onmessage = (e) => {
 
   const t0 = performance.now();
   const found = detector.detect({ width, height, data: new Uint8ClampedArray(data) });
-  const markers = found.map((m) => ({
-    id: m.id,
-    corners: m.corners.map((c) => ({ x: (c.x + 0.5) / scale, y: (c.y + 0.5) / scale })),
-  }));
+  const markers = found.map((m) => {
+    // Contour corners are the centers of the outermost black pixels; the real
+    // edge lies half a pixel further out, so push each corner away from the center.
+    const cx = m.corners.reduce((s, c) => s + c.x, 0) / 4, cy = m.corners.reduce((s, c) => s + c.y, 0) / 4;
+    return {
+      id: m.id,
+      corners: m.corners.map((c) => ({
+        x: (c.x + 0.5 + 0.5 * Math.sign(c.x - cx)) / scale,
+        y: (c.y + 0.5 + 0.5 * Math.sign(c.y - cy)) / scale,
+      })),
+    };
+  });
   postMessage({ markers, ms: performance.now() - t0 });
 };

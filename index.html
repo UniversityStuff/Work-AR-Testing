@@ -5,49 +5,56 @@
 <script src="js/diagnostics.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b1120">
-<title>AR at Work Demo</title>
+<title>AR BIM Viewer Demo</title>
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <main class="page-wrap">
   <header class="hero">
-    <h1>AR at work: try it on a phone, then picture it on glasses</h1>
-    <p>Two short hands-on demos built on printed fiducial markers (ArUco). They run in Chrome on any Android phone, with no app to install.
-      Each demo measures what holding the phone costs you, so you can make the case for AR glasses with real numbers.</p>
+    <h1>BIM models in AR: on a phone today, on glasses tomorrow</h1>
+    <p>Two short demos that place a complete building model on printed fiducial markers (ArUco).
+      They run in Chrome on any Android phone, with no app to install.</p>
   </header>
 
   <section class="demos">
     <article class="demo">
       <span class="tag">Demo 1 · one A4 sheet</span>
-      <h2>Guided filter change</h2>
-      <p>The sheet on the table becomes a workstation. A virtual machine appears on it and walks you through a four-step maintenance job with 3D arrows and callouts.</p>
-      <p>Afterwards you see the taps, the tracking losses and how long one hand was busy with the phone.</p>
+      <h2>The whole model on a sheet of paper</h2>
+      <p>Lay one printed A4 sheet on a table. The building stands on it, scaled to fit the sheet, and you can walk around it.</p>
       <div class="row">
         <a class="btn" href="markers.html?set=board">Print sheet</a>
         <a class="btn primary" href="demo1.html">Start</a>
       </div>
     </article>
     <article class="demo">
-      <span class="tag">Demo 2 · four A4 sheets, spread apart</span>
-      <h2>Repair order across stations</h2>
-      <p>Four stations around the room: Storage, Assembly, Test bench and Shipping. The order sends you A → C → B → D, and each station shows live info and your task in AR.</p>
-      <p>Afterwards you see how long you had no guidance in view and how often you had to aim the phone.</p>
+      <span class="tag">Demo 2 · four A4 sheets on the table corners</span>
+      <h2>The whole site across a table</h2>
+      <p>Put one sheet in each corner of a table. The demo measures the table from the sheets, and the model fills the whole tabletop.</p>
       <div class="row">
-        <a class="btn" href="markers.html?set=stations">Print sheets</a>
+        <a class="btn" href="markers.html?set=table">Print sheets</a>
         <a class="btn primary" href="demo2.html">Start</a>
       </div>
     </article>
   </section>
 
   <section class="section">
+    <h2>Models</h2>
+    <ul>
+      <li><b>Single-family house</b> and <b>house, road, rail &amp; bridge site</b>: BIM (IFC4) models from
+        buildingSMART International's <i>Simple-Scene</i> sample, CC BY 4.0. You can switch layers (architecture, structure, HVAC, landscaping, infrastructure) on and off.</li>
+      <li><b>Commercial building</b>: a textured drone photogrammetry scan from Matt1up's <i>drone-building-scans</i> dataset (CC BY 4.0). It is about 22 MB and loads from Hugging Face.</li>
+      <li><b>Open .glb…</b> loads any glTF/GLB from the phone, e.g. your own drone scan or a converted IFC model.</li>
+    </ul>
+  </section>
+
+  <section class="section">
     <h2>Setup</h2>
     <ul>
-      <li><b>Print</b> the sheets on DIN A4 at 100 % scale. Matte paper works best. Ready-made PDFs:
-        <a href="markers/demo1-board-A4.pdf" style="color:var(--accent)">Demo 1</a> ·
-        <a href="markers/demo2-stations-A4.pdf" style="color:var(--accent)">Demo 2</a>.</li>
-      <li><b>Demo 1:</b> lay the sheet flat on a table.</li>
-      <li><b>Demo 2:</b> tape the four sheets on walls, shelves or tables at chest height, a few meters apart. Ideally put them in different directions so people have to walk and turn.</li>
-      <li><b>Open</b> this page in Chrome on Android over <b>https://</b>. Browsers only allow the camera on secure pages. Allow camera access when asked.</li>
+      <li><b>Print</b> on DIN A4 at 100 % scale, ideally on matte paper:
+        <a href="markers/demo1-board-A4.pdf" style="color:var(--accent)">Demo 1 sheet</a> ·
+        <a href="markers/demo2-table-corners-A4.pdf" style="color:var(--accent)">Demo 2 corner sheets</a>.</li>
+      <li><b>Demo 2:</b> each sheet names its corner (front left, front right, back right, back left). The arrows point to the side you stand on.</li>
+      <li><b>Open</b> this page in Chrome on Android over <b>https://</b> and allow camera access.</li>
       <li>Good, even light helps. Avoid glare on the paper.</li>
     </ul>
   </section>
@@ -55,10 +62,9 @@
   <section class="section">
     <h2>What to point out while people try it</h2>
     <ul>
-      <li><b>One hand is always gone.</b> Every real step (unscrewing, carrying, plugging in) needs two hands, but one of them holds the phone.</li>
-      <li><b>No aim, no guidance.</b> The moment the phone drops to your side, the AR disappears. Demo 2 reports how much of the job you did without guidance in view.</li>
-      <li><b>Taps with gloves.</b> Every "next" is a tap on a screen. In a workshop that means dirty or gloved fingers.</li>
-      <li><b>Holding still.</b> The calibration step in Demo 2 only runs while the camera stays on the bench. With glasses you just look at it.</li>
+      <li><b>Shared spatial understanding.</b> Everyone around the table looks at the same model at true relative scale, from their own side.</li>
+      <li><b>The phone is the bottleneck.</b> You hold it up at arm's length, you only see the model through a small window, and you can't point at things or take notes while you look.</li>
+      <li><b>With glasses</b> the same model stays on the table while your hands are free and your eyes look at the model, not at a screen.</li>
       <li>The tracking and content are the same on glasses. Only the display moves from your hand to your eyes.</li>
     </ul>
   </section>
@@ -67,8 +73,8 @@
     <h2>Troubleshooting</h2>
     <ul>
       <li>Add <code>?debug</code> to a demo URL to draw the detected markers.</li>
-      <li>If 3D objects float above or below the paper, set the camera focal length as a fraction of the longer image side, e.g. <code>demo1.html?f=0.85</code> (the default is 0.75).</li>
-      <li>"Camera needs a secure page" means the page was opened over plain http. See the README for hosting options.</li>
+      <li>If the model seems to float above or sink into the paper at steep angles, set the camera focal length as a fraction of the longer image side, e.g. <code>demo1.html?f=0.85</code> (the default is 0.75).</li>
+      <li>If a red message appears, it explains what went wrong, for example the page was opened over plain http or the drone scan could not be downloaded.</li>
     </ul>
   </section>
 </main>

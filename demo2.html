@@ -5,7 +5,7 @@
 <script src="js/diagnostics.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#0b1120">
-<title>Demo 2 · Four Stations</title>
+<title>Demo 2 · Model on a Table</title>
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body class="ar-body">
@@ -15,54 +15,57 @@
 
 <div class="hud-top">
   <a class="icon-btn" href="./" aria-label="Back to menu">‹</a>
-  <div class="hud-title">Demo 2 · Repair order #4711</div>
-  <span class="chip" id="track-chip"><span class="dot"></span><span id="track-label">No station</span></span>
-  <span class="chip" id="timer">0:00</span>
+  <div class="hud-title">Demo 2 · Model on the table</div>
+  <span class="chip" id="track-chip"><span class="dot"></span><span id="track-label">Searching</span></span>
+  <button class="icon-btn" id="table-btn" aria-label="Table size" title="Table size">📏</button>
+  <button class="icon-btn" id="hide-btn" aria-label="Hide controls" title="Hide controls">👁</button>
 </div>
 
 <div class="banner top" id="banner"></div>
 
-<div class="card" id="card">
-  <div class="kicker" id="task-kicker"></div>
-  <h2 id="task-title"></h2>
-  <p id="task-detail"></p>
-  <div class="progress" id="dwell" hidden><div id="dwell-bar"></div></div>
-  <div class="steps" id="task-chips"></div>
-  <div class="row"><button class="btn ok" id="done-btn" disabled>Done</button></div>
+<div class="card viewer-card" id="panel">
+  <div class="kicker"><span id="model-kind"></span> · table <span id="table-size"></span></div>
+  <h2 id="model-name"></h2>
+  <p class="credit" id="model-credit"></p>
+  <div class="loading" id="loading" hidden><span id="loading-text"></span><div class="progress"><div id="loading-bar"></div></div></div>
+  <div class="pills" id="model-chips"></div>
+  <div class="row">
+    <button class="btn" id="rotate-btn">⟳ Rotate</button>
+    <button class="btn" id="layers-btn" hidden>Layers</button>
+  </div>
+  <div class="pills" id="layers" hidden></div>
+</div>
+
+<div class="overlay hidden" id="table-sheet">
+  <div class="sheet">
+    <h1>Table size</h1>
+    <p>Measure it automatically from the four corner sheets, or type in the outer size of the table.
+      Typed sizes assume each sheet is pushed right into its corner.</p>
+    <div class="row">
+      <label class="field">Width (left–right)<input id="table-w" type="number" inputmode="numeric" min="50" max="600"> cm</label>
+      <label class="field">Depth (front–back)<input id="table-d" type="number" inputmode="numeric" min="50" max="600"> cm</label>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="table-measure">📏 Measure automatically</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="table-save">Use typed size</button>
+      <button class="btn" id="table-close">Close</button>
+    </div>
+  </div>
 </div>
 
 <div class="overlay" id="start">
   <div class="sheet">
-    <h1>Demo 2 · Four stations, one job</h1>
-    <p>Tape the four printed station sheets (A–D) at different spots in the room, a few meters apart. The job sends you between them in a fixed order.</p>
+    <h1>Demo 2 · A whole site on the table</h1>
+    <p>Put the four printed corner sheets into the four corners of a table. Each sheet says which corner it belongs to; the arrows point towards the side you stand on.</p>
     <ul>
-      <li>Walk to the station shown on the card and point the camera at its sheet.</li>
-      <li>At the test bench you have to <b>keep the camera on the station</b> while it calibrates.</li>
-      <li>Every station shows live info when you look at it.</li>
+      <li>The first time, step back until at least three sheets are in view. The demo measures the table by itself.</li>
+      <li>Then the model fills the whole table. Walk around it.</li>
+      <li>📏 re-measures or lets you type the table size.</li>
     </ul>
     <p class="error" id="start-error" hidden></p>
     <div class="row"><button class="btn primary" id="start-btn">Start camera</button></div>
-  </div>
-</div>
-
-<div class="overlay hidden" id="summary">
-  <div class="sheet">
-    <h1>Order #4711 done 🎉</h1>
-    <p>Here's what doing it with a phone looked like:</p>
-    <div class="metrics" id="summary-metrics"></div>
-    <div class="glasses">
-      <h3>With AR glasses</h3>
-      <ul>
-        <li>The next station and the task stay in view while you walk. You never pull out a phone.</li>
-        <li>Your hands are free to carry, plug in and pack the part.</li>
-        <li>For calibration you just look at the bench. Nobody has to hold a phone still.</li>
-        <li>Live machine data shows up the moment you look at a station.</li>
-      </ul>
-    </div>
-    <div class="row">
-      <button class="btn primary" id="restart-btn">Run again</button>
-      <a class="btn" href="./">Menu</a>
-    </div>
   </div>
 </div>
 
