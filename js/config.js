@@ -50,7 +50,7 @@ export function tableBoard({ width, depth }) {
   };
 }
 
-// Models the viewer can show. `url` is tried first, then `fallbackUrl`.
+// Models the viewer can show. `url` is tried first, then `fallbackUrl`; `tiles` is a 3D Tiles tileset.json.
 // Models are standard glTF (Y up). `up: 'auto'` guesses the up axis for scans
 // exported in other conventions.
 const BS_CREDIT = 'buildingSMART International, "Simple-Scene" sample (IFC4), CC BY 4.0';
@@ -65,6 +65,11 @@ export const MODELS = [
     url: 'models/drone-flat-roof.glb',
     fallbackUrl: 'https://huggingface.co/datasets/Matt1up/drone-building-scans/resolve/main/flat-roof/model/flat-roof.glb',
     note: 'about 22 MB, loads from Hugging Face',
+  },
+  // 3D Tiles tilesets (tools/glb2tiles.py) are streamed: only the tiles in view, at the detail needed.
+  {
+    id: 'station-tiles', name: 'Abandoned train station', kind: 'Drone scan (streamed)', tiles: 'models/tiles/abandoned-station/tileset.json',
+    credit: 'Vasilis Haroupas, "Abandoned Train Station", CC BY 4.0',
   },
 ];
 

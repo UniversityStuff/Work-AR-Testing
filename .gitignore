@@ -1,3 +1,6 @@
-# Large source data (drone scans, point clouds) and the tiles generated from it.
+# Large source data (drone scans, point clouds) and tiles built locally from it
 models/source/
 models/tiles/sncf-rail/
+models/tiles/mount-royal-station/
+# Obj2Tiles binary for tools/glb2tiles.py
+tools/Obj2Tiles/
