@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Printable Marker Sheets</title>
+<style>
+  :root { --ink: #0f172a; --muted: #475569; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e2e8f0; color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .toolbar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+    padding: 12px 16px; background: #0f172a; color: #fff; }
+  .toolbar a, .toolbar button { color: #fff; background: #334155; border: 0; border-radius: 8px; padding: 8px 12px; font: inherit; text-decoration: none; cursor: pointer; }
+  .toolbar button.primary { background: #2563eb; }
+  .toolbar .hint { font-size: 14px; color: #cbd5e1; flex: 1 1 260px; }
+  .pages { padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px; overflow-x: auto; }
+  .page { position: relative; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,.15); overflow: hidden; flex: none; }
+  .page.landscape { width: 297mm; height: 210mm; }
+  .page.portrait { width: 210mm; height: 297mm; }
+  .marker { position: absolute; }
+  .marker svg { display: block; width: 100%; height: 100%; shape-rendering: crispEdges; }
+  .id { position: absolute; font-size: 2.6mm; color: #94a3b8; }
+
+  .work-area { position: absolute; left: 82mm; right: 82mm; top: 22mm; bottom: 22mm; border: 0.6mm dashed #94a3b8; border-radius: 4mm;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 6mm; }
+  .work-area h1 { margin: 0 0 3mm; font-size: 7mm; }
+  .work-area p { margin: 0 0 2mm; font-size: 3.6mm; color: var(--muted); line-height: 1.35; }
+  .footer { position: absolute; left: 0; right: 0; bottom: 5mm; text-align: center; font-size: 3mm; color: #94a3b8; }
+
+  .station-info { position: absolute; left: 20mm; right: 20mm; top: 200mm; display: flex; gap: 8mm; align-items: center; }
+  .badge { width: 34mm; height: 34mm; border-radius: 50%; color: #fff; font-size: 22mm; font-weight: 800; display: grid; place-items: center; flex: none; }
+  .station-info h1 { margin: 0; font-size: 12mm; }
+  .station-info p { margin: 2mm 0 0; font-size: 4.2mm; color: var(--muted); line-height: 1.35; }
+  .station-tip { position: absolute; left: 20mm; right: 20mm; top: 250mm; font-size: 3.8mm; color: var(--muted); line-height: 1.4;
+    border-top: 0.4mm solid #e2e8f0; padding-top: 5mm; }
+
+  @media print {
+    body { background: #fff; }
+    .toolbar { display: none; }
+    .pages { padding: 0; gap: 0; display: block; }
+    .page { box-shadow: none; break-after: page; }
+  }
+</style>
+<style id="page-size"></style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="primary" onclick="print()">Print</button>
+  <a href="?set=board">Demo 1: single sheet</a>
+  <a href="?set=stations">Demo 2: four stations</a>
+  <a href="./">Back</a>
+  <span class="hint">Print on DIN A4 at 100 % / "actual size", no "fit to page". Matte paper works best (less glare).</span>
+</div>
+<div class="pages" id="pages"></div>
+
+<script src="vendor/aruco/cv.js"></script>
+<script src="vendor/aruco/aruco.js"></script>
+<script type="module">
+import { DICTIONARY, BOARD, STATIONS, STATION_PAGE, STATION_MARKER_SIZE, STATION_MARKER_TOP } from './js/config.js';
+
+const dict = new AR.Dictionary(DICTIONARY);
+const mm = (m) => `${(m * 1000).toFixed(2)}mm`;
+
+// generateSVG() includes a 1-cell white quiet zone; crop the viewBox to the black square.
+function markerSVG(id) {
+  const n = dict.markSize;
+  return dict.generateSVG(id).replace(/viewBox="[^"]*"/, `viewBox="1 1 ${n} ${n}"`);
+}
+
+function marker(id, left, top, size) {
+  const el = document.createElement('div');
+  el.className = 'marker';
+  Object.assign(el.style, { left: mm(left), top: mm(top), width: mm(size), height: mm(size) });
+  el.innerHTML = markerSVG(id);
+  return el;
+}
+
+function boardPage() {
+  const { page, markerSize, markers } = BOARD;
+  const el = document.createElement('section');
+  el.className = 'page landscape';
+  for (const m of markers) {
+    const left = page.width / 2 + m.x - markerSize / 2;
+    const top = page.height / 2 - m.y - markerSize / 2;
+    el.append(marker(m.id, left, top, markerSize));
+  }
+  el.insertAdjacentHTML('beforeend', `
+    <div class="work-area">
+      <h1>AR Demo 1 · Workstation</h1>
+      <p>Lay this sheet flat on a table and point the phone at it.</p>
+      <p>A virtual machine appears here and guides you through a maintenance job step by step.</p>
+      <p>One visible corner marker is enough, so your hands may cover the others.</p>
+    </div>
+    <div class="footer">Print at 100 % · ArUco ${DICTIONARY} · IDs ${markers.map((m) => m.id).join(', ')}</div>`);
+  return el;
+}
+
+function stationPage(st) {
+  const el = document.createElement('section');
+  el.className = 'page portrait';
+  const left = (STATION_PAGE.width - STATION_MARKER_SIZE) / 2;
+  el.append(marker(st.id, left, STATION_MARKER_TOP, STATION_MARKER_SIZE));
+  el.insertAdjacentHTML('beforeend', `
+    <div class="station-info">
+      <div class="badge" style="background:${st.color}">${st.key}</div>
+      <div>
+        <h1>${st.name}</h1>
+        <p>AR Demo 2 · Station ${st.key} of ${STATIONS.length}</p>
+      </div>
+    </div>
+    <div class="station-tip">
+      Tape the four station sheets at different places in the room, a few meters apart
+      (on walls, shelves or tables, roughly at chest height). The demo sends you from station to station.
+    </div>
+    <div class="footer">Print at 100 % · ArUco ${DICTIONARY} · ID ${st.id}</div>`);
+  return el;
+}
+
+const set = new URLSearchParams(location.search).get('set') || 'board';
+const pages = document.getElementById('pages');
+if (set === 'stations') {
+  document.getElementById('page-size').textContent = '@page { size: A4 portrait; margin: 0; }';
+  STATIONS.forEach((st) => pages.append(stationPage(st)));
+} else {
+  document.getElementById('page-size').textContent = '@page { size: A4 landscape; margin: 0; }';
+  pages.append(boardPage());
+}
+document.title = set === 'stations' ? 'Demo 2 Station Sheets' : 'Demo 1 Board Sheet';
+document.body.dataset.ready = '1';
+</script>
+</body>
+</html>

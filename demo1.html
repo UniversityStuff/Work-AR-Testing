@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b1120">
+<title>Demo 1 · Workstation</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body class="ar-body">
+<video id="video" playsinline muted autoplay></video>
+<canvas id="gl"></canvas>
+<canvas id="debug"></canvas>
+
+<div class="hud-top">
+  <a class="icon-btn" href="./" aria-label="Back to menu">‹</a>
+  <div class="hud-title">Demo 1 · Filter change</div>
+  <span class="chip" id="track-chip"><span class="dot"></span><span id="track-label">Searching</span></span>
+  <span class="chip" id="timer">0:00</span>
+</div>
+
+<div class="banner" id="banner"><span class="big">📄</span>Point the camera at the A4 sheet</div>
+
+<div class="card" id="card" hidden>
+  <div class="kicker" id="step-kicker">Step 1 of 4</div>
+  <h2 id="step-title"></h2>
+  <p id="step-detail"></p>
+  <div class="hands">✋ In real life this step needs both hands, but one is holding the phone.</div>
+  <div class="row">
+    <button class="btn" id="back-btn">Back</button>
+    <button class="btn primary" id="next-btn">Done, next</button>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <div class="sheet">
+    <h1>Demo 1 · One sheet, one workstation</h1>
+    <p>Lay the printed A4 sheet flat on a table. A virtual machine appears on it and walks you through a filter change, step by step.</p>
+    <ul>
+      <li>Hold the phone so you can see the sheet.</li>
+      <li>Tap <b>Done, next</b> after each step.</li>
+      <li>Pay attention to what your hands are doing.</li>
+    </ul>
+    <p class="error" id="start-error" hidden></p>
+    <div class="row"><button class="btn primary" id="start-btn">Start camera</button></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="summary">
+  <div class="sheet">
+    <h1>Job done 🎉</h1>
+    <p>Here's what using a phone for this cost you:</p>
+    <div class="metrics" id="summary-metrics"></div>
+    <div class="glasses">
+      <h3>With AR glasses</h3>
+      <ul>
+        <li>Both hands stay on the tool and the part.</li>
+        <li>The instructions stay in view without aiming anything.</li>
+        <li>You move on by voice or gesture, so there's no screen to tap with dirty gloves.</li>
+      </ul>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="restart-btn">Run again</button>
+      <a class="btn" href="./">Menu</a>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/demo1.js"></script>
+</body>
+</html>

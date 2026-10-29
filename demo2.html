@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b1120">
+<title>Demo 2 · Four Stations</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body class="ar-body">
+<video id="video" playsinline muted autoplay></video>
+<canvas id="gl"></canvas>
+<canvas id="debug"></canvas>
+
+<div class="hud-top">
+  <a class="icon-btn" href="./" aria-label="Back to menu">‹</a>
+  <div class="hud-title">Demo 2 · Repair order #4711</div>
+  <span class="chip" id="track-chip"><span class="dot"></span><span id="track-label">No station</span></span>
+  <span class="chip" id="timer">0:00</span>
+</div>
+
+<div class="banner top" id="banner"></div>
+
+<div class="card" id="card">
+  <div class="kicker" id="task-kicker"></div>
+  <h2 id="task-title"></h2>
+  <p id="task-detail"></p>
+  <div class="progress" id="dwell" hidden><div id="dwell-bar"></div></div>
+  <div class="steps" id="task-chips"></div>
+  <div class="row"><button class="btn ok" id="done-btn" disabled>Done</button></div>
+</div>
+
+<div class="overlay" id="start">
+  <div class="sheet">
+    <h1>Demo 2 · Four stations, one job</h1>
+    <p>Tape the four printed station sheets (A–D) at different spots in the room, a few meters apart. The job sends you between them in a fixed order.</p>
+    <ul>
+      <li>Walk to the station shown on the card and point the camera at its sheet.</li>
+      <li>At the test bench you have to <b>keep the camera on the station</b> while it calibrates.</li>
+      <li>Every station shows live info when you look at it.</li>
+    </ul>
+    <p class="error" id="start-error" hidden></p>
+    <div class="row"><button class="btn primary" id="start-btn">Start camera</button></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="summary">
+  <div class="sheet">
+    <h1>Order #4711 done 🎉</h1>
+    <p>Here's what doing it with a phone looked like:</p>
+    <div class="metrics" id="summary-metrics"></div>
+    <div class="glasses">
+      <h3>With AR glasses</h3>
+      <ul>
+        <li>The next station and the task stay in view while you walk. You never pull out a phone.</li>
+        <li>Your hands are free to carry, plug in and pack the part.</li>
+        <li>For calibration you just look at the bench. Nobody has to hold a phone still.</li>
+        <li>Live machine data shows up the moment you look at a station.</li>
+      </ul>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="restart-btn">Run again</button>
+      <a class="btn" href="./">Menu</a>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/demo2.js"></script>
+</body>
+</html>
