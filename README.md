@@ -77,10 +77,10 @@ Then add an entry to `MODELS` in `js/config.js`. Each IFC file becomes a layer t
 ## Tips and troubleshooting
 
 - Use good, even light and avoid glare on the paper.
-- `?debug` (e.g. `demo1.html?debug`) outlines the detected markers and their IDs.
+- The debug overlay (marker outlines, status lines and red/green/blue axes at the tracked origin) is on by default; `?nodebug` hides it. `?bg=video` shows the camera through the `<video>` element instead of drawing it inside WebGL.
 - The camera focal length is estimated automatically from the markers (best while two or more
   markers are in view at an angle) and remembered on the phone. `?f=0.85` forces a value (as a
-  fraction of the longer image side). With `?debug`, the status lines show the estimate, the pose
+  fraction of the longer image side). The debug status lines show the estimate, the pose
   error and how many triangles are being drawn.
 - If the table measurement warns that the sheets don't line up, check that each sheet is in its
   labelled corner and that all arrows point to the front.

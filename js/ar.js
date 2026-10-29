@@ -6,7 +6,11 @@ import { DICTIONARY, MAX_HAMMING } from './config.js';
 export { THREE };
 
 const params = new URLSearchParams(location.search);
-export const DEBUG = params.has('debug');
+// Debug overlay is on unless ?nodebug is given.
+export const DEBUG = !params.has('nodebug');
+// 'gl': draw the camera image inside the WebGL canvas (robust on all phones).
+// 'video': show the <video> element behind a transparent canvas.
+const BG_MODE = params.get('bg') === 'video' ? 'video' : 'gl';
 
 // ---------------------------------------------------------------- camera
 
@@ -275,6 +279,20 @@ export function solvePlanarPose(obj, img, K) {
 
 // ---------------------------------------------------------------- rendering
 
+// Red/green/blue bars along the anchor's x/y/z axes, drawn with the simplest
+// shader. If these show but the model doesn't, the model's materials are the problem.
+function axesGizmo() {
+  const g = new THREE.Group();
+  for (const [axis, color] of [[0, 0xff3b30], [1, 0x34c759], [2, 0x0a84ff]]) {
+    const size = [0.004, 0.004, 0.004];
+    size[axis] = 0.06;
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial({ color }));
+    bar.position.setComponent(axis, 0.03);
+    g.add(bar);
+  }
+  return g;
+}
+
 const FOCAL_KEY = 'ar-focal-factor';
 const FOCAL_SAMPLES = 15;
 
@@ -325,6 +343,24 @@ export class ARScene {
     const sun = new THREE.DirectionalLight(0xffffff, 2.0);
     sun.position.set(0.3, 1, 0.6);
     this.scene.add(sun);
+
+    // Camera image as a full-screen quad rendered first, cover-cropped like the <video>.
+    this.bgMode = BG_MODE;
+    if (this.bgMode === 'gl') {
+      this.videoTex = new THREE.VideoTexture(video);
+      this.videoTex.colorSpace = THREE.SRGBColorSpace;
+      this.videoTex.generateMipmaps = false;
+      this.bgScene = new THREE.Scene();
+      this.bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      this.bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2),
+        new THREE.MeshBasicMaterial({ map: this.videoTex, depthTest: false, depthWrite: false })));
+      this.renderer.autoClear = false;
+      video.style.opacity = '0'; // keeps playing (the tracker reads it) but is not shown
+    }
+
+    const gl = this.renderer.getContext();
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    this.gpuInfo = `${this.renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL1'} · ${dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)}`;
 
     this.anchors = new Map();
     this.lastMarkers = [];
@@ -410,10 +446,19 @@ export class ARScene {
       0, 0, -1, 0,
     );
     this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
+    if (this.videoTex) {
+      const ru = W / (this.video.videoWidth * s || W), rv = H / (this.video.videoHeight * s || H);
+      this.videoTex.repeat.set(ru, rv);
+      this.videoTex.offset.set((1 - ru) / 2, (1 - rv) / 2);
+    }
   }
 
   anchor(name) {
-    if (!this.anchors.has(name)) this.anchors.set(name, new Anchor(this.scene));
+    if (!this.anchors.has(name)) {
+      const a = new Anchor(this.scene);
+      if (DEBUG) a.group.add(axesGizmo());
+      this.anchors.set(name, a);
+    }
     return this.anchors.get(name).group;
   }
 
@@ -469,6 +514,11 @@ export class ARScene {
       a.group.matrix.compose(a.pos, a.quat, this._s.set(1, 1, 1));
       a.group.matrixWorldNeedsUpdate = true;
     }
+    if (this.bgScene) {
+      this.renderer.clear();
+      this.renderer.render(this.bgScene, this.bgCamera);
+      this.renderer.clearDepth();
+    }
     this.renderer.render(this.scene, this.camera);
     if (this.debugCanvas) this._drawDebug();
   }
@@ -499,11 +549,12 @@ export class ARScene {
     const lines = [
       `video ${vw}×${vh} · markers ${this.lastMarkers.length} · ${tracked ? 'tracked' : 'not tracked'}`,
       `pose error ${this.lastPoseError.toFixed(1)} px · focal ${this.focalFactor.toFixed(3)} (${this.focalFixed ? 'fixed' : `auto ${this.focalSamples.length}/${FOCAL_SAMPLES}`})`,
-      `drawn: ${info.triangles} triangles, ${info.calls} draw calls`,
+      `drawn: ${info.triangles} triangles, ${info.calls} draw calls · camera via ${this.bgMode}`,
+      this.gpuInfo,
     ];
     ctx.font = '12px ui-monospace, monospace';
     ctx.fillStyle = 'rgba(0,0,0,.6)';
-    ctx.fillRect(8, 64, Math.min(innerWidth - 16, 400), 54);
+    ctx.fillRect(8, 64, Math.min(innerWidth - 16, 420), 70);
     ctx.fillStyle = '#fff';
     lines.forEach((l, i) => ctx.fillText(l, 14, 82 + i * 16));
   }

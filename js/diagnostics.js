@@ -42,6 +42,15 @@
       show('Error: ' + (e.message || e.error) + (e.filename ? '\n' + e.filename + ':' + e.lineno : ''));
     }
   }, true);
+  // three.js reports shader/WebGL failures only on the console; surface them.
+  ['error', 'warn'].forEach(function (level) {
+    var orig = console[level];
+    console[level] = function () {
+      var text = Array.prototype.map.call(arguments, function (a) { return a && a.message || String(a); }).join(' ');
+      if (/THREE|WebGL|shader|GL_/i.test(text)) show('console.' + level + ': ' + text.slice(0, 600));
+      return orig.apply(console, arguments);
+    };
+  });
   window.addEventListener('unhandledrejection', function (e) {
     var r = e.reason;
     show('Error: ' + (r && (r.message || r.name) || r));
