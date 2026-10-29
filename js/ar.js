@@ -48,6 +48,10 @@ export class MarkerTracker {
     this.busy = false;
     this.detectMs = 0;
     this.listeners = [];
+    this.worker.onerror = (e) => {
+      e.preventDefault();
+      window.showDiagnostic?.(`Marker detection failed: ${e.message || 'could not start the detector worker'}`);
+    };
     this.worker.onmessage = (e) => {
       this.busy = false;
       this.detectMs = e.data.ms;

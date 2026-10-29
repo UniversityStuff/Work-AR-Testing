@@ -3,6 +3,8 @@ import { startCamera, enterPresentationMode, DEBUG } from './ar.js';
 
 export const $ = (sel) => document.querySelector(sel);
 
+window.__appReady = true; // seen by diagnostics.js
+
 export function formatTime(ms) {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

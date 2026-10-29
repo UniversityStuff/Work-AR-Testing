@@ -1,7 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-needs-app>
 <head>
 <meta charset="utf-8">
+<script src="js/diagnostics.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Printable Marker Sheets</title>
 <style>
@@ -127,6 +128,7 @@ if (set === 'stations') {
 }
 document.title = set === 'stations' ? 'Demo 2 Station Sheets' : 'Demo 1 Board Sheet';
 document.body.dataset.ready = '1';
+window.__appReady = true;
 </script>
 </body>
 </html>

@@ -28,8 +28,13 @@ AR glasses.
 ### Hosting options (camera needs HTTPS or localhost)
 
 - **GitHub Pages** (simplest): go to *Settings → Pages → Deploy from a branch*, pick the branch
-  and `/ (root)`. The demo is then at `https://<owner>.github.io/<repo>/`.
+  that holds these files and `/ (root)`, then wait 1–2 minutes for the deploy to finish (see the
+  *Actions* tab). The demo is then at `https://<owner>.github.io/<repo>/`, e.g.
+  `https://universitystuff.github.io/Work-AR-Testing/`.
   Private repos need a paid GitHub plan for Pages.
+- Opening the files directly (double-click, `file://`, or the file view on github.com) or over
+  plain `http://` with an IP address does **not** work. The pages now show a red message
+  explaining the problem when that happens.
 - **Any static HTTPS host** works too (Netlify Drop, Cloudflare Pages, an internal web server).
   Upload the folder as it is.
 - **Laptop + USB cable**, no hosting needed:
