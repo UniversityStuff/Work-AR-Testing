@@ -116,6 +116,10 @@ cross-origin requests (CORS) from the demo's address.
 4. **Demo 2, first run:** step back until at least three corner sheets are in view. The table is
    measured in a few seconds and remembered on the phone. 📏 measures again or lets you type the size.
 
+**Move, zoom and turn:** drag the model across the paper with one finger, pinch to zoom in on a
+part (streamed models load finer tiles as you zoom, just as when you move the phone closer) and
+twist two fingers to turn it. *Reset view* puts it back; on a desktop the mouse wheel zooms.
+
 👁 hides all controls for a clean view while presenting.
 
 ### Hosting options (camera needs HTTPS or localhost)

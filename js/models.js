@@ -168,7 +168,7 @@ function prepareMaterials(model) {
     // model's fit scale, so a 1 "m" point would cover the sheet. Use pixels instead.
     if (o.isPoints) {
       o.material.sizeAttenuation = false;
-      o.material.size = 2 * Math.min(devicePixelRatio, 2); // matches the renderer's pixel ratio
+      o.material.size = 1.5; // CSS px; three multiplies by the renderer's pixel ratio
       return;
     }
     if (!o.isMesh) return;
@@ -203,15 +203,21 @@ function tilesBounds(tiles, frame) {
   return out;
 }
 
-// anchor -> stage (area center) -> yaw (90° steps) -> fit (scale/offset) -> up -> model
+// Zoom range of the user's view, relative to the model fitted to the area.
+const MIN_ZOOM = 0.25, MAX_ZOOM = 2000;
+
+// anchor -> stage (area center) -> view (user pan/zoom/turn) -> yaw (90° steps)
+//   -> fit (scale/offset) -> up -> model
 export class ModelStage {
   constructor(anchor) {
     this.stage = new THREE.Group();
+    this.view = new THREE.Group();
     this.yaw = new THREE.Group();
     this.fit = new THREE.Group();
     this.up = new THREE.Group();
     anchor.add(this.stage);
-    this.stage.add(this.yaw);
+    this.stage.add(this.view);
+    this.view.add(this.yaw);
     this.yaw.add(this.fit);
     this.fit.add(this.up);
     this.area = { width: 0.2, depth: 0.2, margin: 0.95 };
@@ -235,7 +241,59 @@ export class ModelStage {
       this.up.quaternion.copy(upRotation(model, def.up));
     }
     this.up.add(model);
+    this.resetView();
     this.refit();
+  }
+
+  // Where a screen point (CSS px) hits the area's plane, in the stage frame
+  // (x/y on the paper), or null if the area isn't tracked or the ray misses it.
+  pointOnArea(clientX, clientY, camera) {
+    for (let o = this.stage; o; o = o.parent) if (!o.visible) return null;
+    this.stage.updateWorldMatrix(true, false);
+    const ndc = new THREE.Vector3((clientX / innerWidth) * 2 - 1, 1 - (clientY / innerHeight) * 2, 0.5);
+    const inv = this.stage.matrixWorld.clone().invert();
+    const origin = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld).applyMatrix4(inv);
+    const dir = ndc.applyMatrix4(camera.projectionMatrixInverse).applyMatrix4(camera.matrixWorld).applyMatrix4(inv).sub(origin);
+    const t = -origin.z / dir.z;
+    if (!(t > 0) || !Number.isFinite(t)) return null;
+    return new THREE.Vector2(origin.x + t * dir.x, origin.y + t * dir.y);
+  }
+
+  // Moves the view so the paper points p1/p2 end up at q1/q2: one pair pans,
+  // two pairs also zoom and turn around them (pinch).
+  moveView(p1, q1, p2 = null, q2 = null) {
+    const v = this.view;
+    let s = 1, a = 0;
+    const pm = p1.clone(), qm = q1.clone();
+    if (p2 && q2) {
+      const dp = p2.clone().sub(p1), dq = q2.clone().sub(q1);
+      if (dp.length() < 1e-4) return;
+      s = THREE.MathUtils.clamp(dq.length() / dp.length(), MIN_ZOOM / v.scale.x, MAX_ZOOM / v.scale.x);
+      a = Math.atan2(dq.y, dq.x) - Math.atan2(dp.y, dp.x);
+      pm.add(p2).multiplyScalar(0.5);
+      qm.add(q2).multiplyScalar(0.5);
+    }
+    const d = new THREE.Vector2(v.position.x, v.position.y).sub(pm).rotateAround(new THREE.Vector2(), a).multiplyScalar(s).add(qm);
+    v.position.set(d.x, d.y, 0);
+    v.rotation.z += a;
+    v.scale.multiplyScalar(s);
+  }
+
+  // Zooms by factor k around paper point p (mouse wheel).
+  zoomView(p, k) {
+    const e = new THREE.Vector2(0.01, 0);
+    this.moveView(p, p, p.clone().add(e), p.clone().add(e.multiplyScalar(k)));
+  }
+
+  resetView() {
+    this.view.position.set(0, 0, 0);
+    this.view.rotation.set(0, 0, 0);
+    this.view.scale.setScalar(1);
+  }
+
+  get viewChanged() {
+    const v = this.view;
+    return v.position.lengthSq() > 1e-8 || Math.abs(v.rotation.z) > 1e-4 || Math.abs(v.scale.x - 1) > 1e-4;
   }
 
   // The tile renderer picks tiles for the camera that draws them, so update it

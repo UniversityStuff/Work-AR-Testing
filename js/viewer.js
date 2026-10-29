@@ -1,10 +1,51 @@
 // Shared model-viewer UI for both demos: model picker, rotate, BIM layers,
-// loading progress, credits and a "clean view" toggle for presenting.
+// pan/zoom/turn gestures, loading progress, credits and a "clean view" toggle.
 import { MODELS } from './config.js';
 import { loadModel, loadTiles } from './models.js';
 import { $ } from './ui.js';
 
-export function createViewer(stage, { defaultModel }) {
+// Touch on the camera view moves the model across the paper: one finger drags,
+// two fingers pinch to zoom and twist to turn around the point between them.
+// The mouse wheel zooms (desktop). Streamed models load finer tiles as you zoom.
+function attachGestures(stage, camera, onChange) {
+  const canvas = $('#gl');
+  const pointers = new Map(); // pointerId -> last CSS position
+  const hit = (p) => stage.pointOnArea(p.x, p.y, camera);
+
+  canvas.addEventListener('pointerdown', (e) => {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const last = pointers.get(e.pointerId);
+    if (!last) return;
+    const now = { x: e.clientX, y: e.clientY };
+    const other = [...pointers].find(([id]) => id !== e.pointerId)?.[1];
+    const p1 = hit(last), q1 = hit(now);
+    if (p1 && q1) {
+      if (other) {
+        const o = hit(other);
+        if (o) stage.moveView(p1, q1, o, o);
+      } else {
+        stage.moveView(p1, q1);
+      }
+      onChange();
+    }
+    pointers.set(e.pointerId, now);
+  });
+  const end = (e) => pointers.delete(e.pointerId);
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const p = hit({ x: e.clientX, y: e.clientY });
+    if (!p) return;
+    stage.zoomView(p, Math.exp(-e.deltaY * 0.002));
+    onChange();
+  }, { passive: false });
+}
+
+export function createViewer(stage, { defaultModel, camera }) {
   let loadToken = 0;
   let current = null;
 
@@ -21,6 +62,9 @@ export function createViewer(stage, { defaultModel }) {
   });
 
   $('#rotate-btn').addEventListener('click', () => stage.rotate());
+  const updateReset = () => { $('#reset-btn').hidden = !stage.viewChanged; };
+  $('#reset-btn').addEventListener('click', () => { stage.resetView(); updateReset(); });
+  attachGestures(stage, camera, updateReset);
   $('#layers-btn').addEventListener('click', () => { $('#layers').hidden = !$('#layers').hidden; });
   $('#hide-btn').addEventListener('click', () => document.body.classList.toggle('clean'));
   $('#layers').addEventListener('change', (e) => {
@@ -48,6 +92,7 @@ export function createViewer(stage, { defaultModel }) {
       })).scene;
       if (token !== loadToken) return model.userData.tiles?.dispose();
       stage.setModel(model, def);
+      updateReset();
       const layers = stage.layers();
       $('#layers-btn').hidden = layers.length < 2;
       $('#layers').hidden = true;

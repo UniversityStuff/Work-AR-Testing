@@ -66,7 +66,7 @@ bootStartOverlay(() => {
   const tracker = new MarkerTracker($('#video'), { maxSide: 1280 }); // corner markers are far away
   const anchor = ar.anchor('table');
   const stage = new ModelStage(anchor);
-  createViewer(stage, { defaultModel: 'site' });
+  createViewer(stage, { defaultModel: 'site', camera: ar.camera });
 
   // Outline of the table as currently calibrated.
   const outline = new THREE.LineLoop(new THREE.BufferGeometry(),
